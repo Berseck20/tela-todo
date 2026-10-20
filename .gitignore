@@ -1,0 +1,17 @@
+.playwright-mcp/
+deploy/.env
+deploy/deploy.env
+.cila/
+
+# Local database backups (make backup)
+backups/
+
+# Scratch screenshots from agent visual checks
+mdview-*.png
+.playwright-mcp/
+app-*.png
+
+# Local Go build output (`go build` in backend/) and Vite's dep cache. Both are
+# regenerated artifacts that a `git add -A` would otherwise sweep into a commit.
+backend/tela
+backend/.vite/

@@ -1,0 +1,93 @@
+@layer tokens {
+  [data-theme='light'] {
+    --surface-1: #ffffff;
+    --surface-2: #f7f7f8;
+    --surface-3: #ececef;
+    --text-primary: #16161a;
+    --text-muted: #5b5b66;
+    --text-inverse: #ffffff;
+    --border-subtle: #e4e4e9;
+    --border-strong: #c8c8d0;
+    --accent: #4f46e5;
+    --accent-fg: #ffffff;
+    --danger: #dc2626;
+    --warning: #d97706;
+    --success: #16a34a;
+
+    --syntax-comment: #6b7280;
+    --syntax-keyword: #8b5cf6;
+    --syntax-string: #16a34a;
+    --syntax-number: #ea580c;
+    --syntax-function: #2563eb;
+    --syntax-punctuation: #6b7280;
+    --syntax-operator: #16161a;
+    --syntax-tag: #be185d;
+    --syntax-attr: #2563eb;
+
+    /* M7.4 presence — mid-darkness saturated hues read well as thin carets
+       against the #ffffff editor surface. */
+    --collab-cursor-1: #dc2626;
+    --collab-cursor-2: #ea580c;
+    --collab-cursor-3: #d97706;
+    --collab-cursor-4: #16a34a;
+    --collab-cursor-5: #0d9488;
+    --collab-cursor-6: #2563eb;
+    --collab-cursor-7: #7c3aed;
+    --collab-cursor-8: #db2777;
+
+    /* M8.4 — warm amber against #ffffff. Mid-darkness so the underline at
+       70% alpha reads as a hint, not a marker; calm enough not to compete
+       with --accent (indigo) used for wikilinks. */
+    --comment-anchor-color: #ca8a04;
+
+    /* M9.2 — diff add/del/gutter palette against the white editor surface.
+       Soft mint + rose tints (the lightest readable green / red on #ffffff)
+       with darker fg text so changed lines remain legible without screaming. */
+    --diff-add-bg: #dcfce7;
+    --diff-add-fg: #166534;
+    --diff-del-bg: #fee2e2;
+    --diff-del-fg: #991b1b;
+    --diff-gutter-bg: #f3f4f6;
+    --diff-gutter-fg: #6b7280;
+
+    /* M13.0 — light-theme callout palette. Soft tinted backgrounds on the
+       white surface (#ffffff), mid-darkness fg/border so the rail + label
+       read as a calm signal rather than an alert banner. */
+    --callout-note-bg: #eff6ff;
+    --callout-note-fg: #1d4ed8;
+    --callout-note-border: #60a5fa;
+    --callout-tip-bg: #ecfdf5;
+    --callout-tip-fg: #15803d;
+    --callout-tip-border: #4ade80;
+    --callout-important-bg: #f5f3ff;
+    --callout-important-fg: #6d28d9;
+    --callout-important-border: #a78bfa;
+    --callout-warning-bg: #fffbeb;
+    --callout-warning-fg: #b45309;
+    --callout-warning-border: #fbbf24;
+    --callout-caution-bg: #fef2f2;
+    --callout-caution-fg: #b91c1c;
+    --callout-caution-border: #f87171;
+
+    /* M19 — shared semantic accent enum + chart palette (see tokens.css for the
+       rationale). Light values: soft tints on the white surface, mid-darkness
+       fg so accents read as a calm signal. */
+    --accent-positive-fg: #15803d;
+    --accent-positive-soft: #ecfdf5;
+    --accent-negative-fg: #b91c1c;
+    --accent-negative-soft: #fef2f2;
+    --accent-warning-fg: #b45309;
+    --accent-warning-soft: #fffbeb;
+    --accent-info-fg: #1d4ed8;
+    --accent-info-soft: #eff6ff;
+
+    --chart-1: #4f46e5;
+    --chart-2: #0d9488;
+    --chart-3: #d97706;
+    --chart-4: #db2777;
+    --chart-5: #2563eb;
+    --chart-6: #65a30d;
+    --chart-grid: #e4e4e9;
+    --chart-axis: #5b5b66;
+  }
+}

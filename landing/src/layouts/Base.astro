@@ -1,0 +1,258 @@
+---
+import { Font } from 'astro:assets';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** Longer copy for the social card; falls back to `description`. The meta
+   *  description stays ≤~160 chars for SERP; og/twitter can run longer. */
+  ogDescription?: string;
+  /** Per-page social-card image (absolute path under /public). Defaults to the
+   *  home card. */
+  ogImagePath?: string;
+}
+
+const {
+  title = 'tela — the agent-native team wiki your AI reasons over',
+  description = 'Open-source markdown team wiki with a built-in MCP server and semantic search — so Claude and ChatGPT read, write, and cite your docs. Hosted or self-hosted.',
+  ogDescription = description,
+  ogImagePath = '/og-image.png',
+} = Astro.props;
+
+// Absolute OG image URL (Astro.site = https://telawiki.com).
+const ogImage = new URL(ogImagePath, Astro.site).href;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+
+    <!-- Apply a saved theme before paint (no flash); absent → default DARK
+         (tela's primary register) via :root, OS-light honored in tokens.css. -->
+    <script is:inline>
+      (function () {
+        try {
+          var t = localStorage.getItem('tela-theme');
+          if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+        } catch (e) {}
+        // Mark JS available BEFORE paint so .reveal-up can start hidden (no FOUC).
+        // Without JS the elements stay visible — content is never gated on script.
+        document.documentElement.classList.add('js');
+      })();
+    </script>
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={Astro.url.href} />
+    <meta name="msvalidate.01" content="6788DCA0B1D622ECEF3018D951C3167D" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <meta name="theme-color" content="#11121a" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#fbfbfe" media="(prefers-color-scheme: light)" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="tela" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={ogDescription} />
+    <meta property="og:url" content={Astro.url.href} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="tela — the wiki your agents reason over" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={ogDescription} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <script type="application/ld+json" is:inline set:html={JSON.stringify({
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'SoftwareApplication',
+          '@id': 'https://telawiki.com/#software',
+          name: 'tela',
+          description: 'A markdown team wiki with semantic search and a built-in MCP server, so AI agents search your docs by meaning and read, write and cite them — right inside Claude and ChatGPT. Real-time multiplayer, SSO, scoped access. Your markdown, hosted or self-hosted.',
+          applicationCategory: 'DeveloperApplication',
+          operatingSystem: 'Linux, macOS, Docker',
+          url: 'https://telawiki.com',
+          image: 'https://telawiki.com/og-image.png',
+          isAccessibleForFree: true,
+          license: 'https://github.com/zcag/tela/blob/main/LICENSE',
+          offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+          publisher: { '@id': 'https://telawiki.com/#org' },
+        },
+        {
+          '@type': 'SoftwareSourceCode',
+          name: 'tela',
+          codeRepository: 'https://github.com/zcag/tela',
+          programmingLanguage: ['Go', 'TypeScript'],
+          runtimePlatform: 'Docker',
+          url: 'https://github.com/zcag/tela',
+        },
+        { '@type': 'WebSite', '@id': 'https://telawiki.com/#website', name: 'tela', url: 'https://telawiki.com', inLanguage: 'en', publisher: { '@id': 'https://telawiki.com/#org' } },
+        {
+          '@type': 'Organization',
+          '@id': 'https://telawiki.com/#org',
+          name: 'tela',
+          url: 'https://telawiki.com',
+          logo: 'https://telawiki.com/icon-512.png',
+          sameAs: [
+            'https://github.com/zcag/tela',
+            'https://www.npmjs.com/package/tela-mcp',
+          ],
+        },
+      ],
+    })} />
+
+    <!-- Per-page <head> extras (e.g. page-scoped JSON-LD). Optional. -->
+    <slot name="head" />
+
+    <Font cssVariable="--af-display" preload />
+    <Font cssVariable="--af-body" preload />
+    <Font cssVariable="--af-mono" />
+
+    <style is:global>
+      @import '../styles/global.css';
+    </style>
+
+    <!-- Umami self-hosted analytics. data-host-url routes the beacon through
+         /analytics/api/send so it is proxied correctly by Caddy. -->
+    <script
+      defer
+      src="https://telawiki.com/analytics/script.js"
+      data-website-id="25ecebda-1f0f-4339-9465-b368e2d7c9a7"
+      data-host-url="https://telawiki.com/analytics"
+      is:inline
+    ></script>
+    <!-- First-touch signup attribution. Umami answers "how many landed"; this
+         answers "which source produced an ACCOUNT" — the app carries no tracker,
+         so this cookie is the only thing that crosses from the landing into
+         signup. Written on the apex domain so the app (same domain, different
+         path) can read it back at POST /api/auth/register, where the backend
+         sanitizes it onto the users row (backend/internal/api/signup_attribution.go).
+         FIRST touch wins: never overwritten, so the ad that brought someone in
+         survives the internal link they click five minutes later. No IDs, no IP,
+         nothing personal — referrer, utm_* and the landing path. -->
+    <script is:inline>
+      (function () {
+        var NAME = 'tela_ft';
+        try {
+          if (document.cookie.indexOf(NAME + '=') !== -1) return; // first touch already recorded
+          var q = new URLSearchParams(location.search);
+          var ref = '';
+          if (document.referrer) {
+            var u = new URL(document.referrer);
+            // Same-site is not a source — it's us linking to ourselves.
+            if (u.host !== location.host) ref = (u.origin + u.pathname).slice(0, 512);
+          }
+          var parts = [];
+          var add = function (k, v) {
+            v = (v || '').trim().slice(0, 128);
+            if (v) parts.push(k + '=' + encodeURIComponent(v));
+          };
+          if (ref) parts.push('r=' + encodeURIComponent(ref));
+          add('s', q.get('utm_source'));
+          add('m', q.get('utm_medium'));
+          add('c', q.get('utm_campaign'));
+          add('t', q.get('utm_term'));
+          add('n', q.get('utm_content'));
+          add('p', location.pathname);
+          if (!parts.length) return;
+          // Apex domain so /login and /register see it; Lax so it rides the
+          // top-level navigation into the app. Not HttpOnly — it is written here,
+          // in the page, and the server only ever reads it.
+          // A bare host (localhost, an IP) can't take a domain attribute; a real
+          // one gets the apex so www. and the app share the cookie.
+          var host = location.hostname;
+          var domain = host.indexOf('.') === -1 ? '' : '; domain=' + host.replace(/^www\./, '');
+          document.cookie = NAME + '=' + parts.join('&') + '; path=/; max-age=7776000; samesite=lax' + domain +
+            (location.protocol === 'https:' ? '; secure' : '');
+        } catch (e) {}
+      })();
+    </script>
+
+    <!-- Scroll-depth tracking — fires once per threshold (25/50/75/100%). -->
+    <script is:inline>
+      (function () {
+        var fired = {};
+        var thresholds = [25, 50, 75, 100];
+        function check() {
+          var doc = document.documentElement;
+          var scrolled = doc.scrollTop || document.body.scrollTop;
+          var total = doc.scrollHeight - doc.clientHeight;
+          if (!total) return;
+          var pct = Math.round((scrolled / total) * 100);
+          thresholds.forEach(function (t) {
+            if (!fired[t] && pct >= t) {
+              fired[t] = true;
+              if (window.umami) window.umami.track('scroll-depth', { percent: t });
+            }
+          });
+        }
+        window.addEventListener('scroll', check, { passive: true });
+      })();
+    </script>
+  </head>
+  <body>
+    <a href="#main" class="skip-link">Skip to content</a>
+    <slot />
+
+    <script is:inline>
+      // Scroll reveals — one-shot IntersectionObserver. Adds .is-visible once and
+      // unobserves, so it can never get stuck mid-animation. Guarded by the CSS
+      // (html.js + no-preference); reduced-motion / no-JS show content at rest.
+      (function () {
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        var run = function () {
+          var io = new IntersectionObserver(function (entries) {
+            entries.forEach(function (e) {
+              if (e.isIntersecting) { e.target.classList.add('is-visible'); io.unobserve(e.target); }
+            });
+          }, { rootMargin: '0px 0px -8% 0px', threshold: 0.06 });
+          document.querySelectorAll('.reveal-up').forEach(function (el) { io.observe(el); });
+        };
+        if (document.readyState !== 'loading') run();
+        else document.addEventListener('DOMContentLoaded', run);
+      })();
+
+      // Theme toggle — persists to localStorage; the no-flash script above reads
+      // it. Brief .theme-transitioning class crossfades chrome (global.css).
+      window.__telaToggleTheme = function () {
+        var el = document.documentElement;
+        var cur = el.dataset.theme
+          || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        var next = cur === 'dark' ? 'light' : 'dark';
+        el.classList.add('theme-transitioning');
+        el.dataset.theme = next;
+        try { localStorage.setItem('tela-theme', next); } catch (e) {}
+        setTimeout(function () { el.classList.remove('theme-transitioning'); }, 320);
+      };
+    </script>
+  </body>
+</html>
+
+<style>
+  .skip-link {
+    position: fixed;
+    left: 1rem;
+    top: -4rem;
+    z-index: 60;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--fg);
+    border: 1px solid var(--border-strong);
+    box-shadow: var(--shadow-pop);
+    transition: top var(--dur) var(--ease-out);
+  }
+  .skip-link:focus { top: 1rem; }
+</style>

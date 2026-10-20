@@ -1,0 +1,29 @@
+# Standalone self-host edge (deploy/docker-compose.yml `proxy` service). Supplies
+# the global options block, then imports the tela site blocks from sites.caddy.
+#
+# A SHARED edge that fronts other services on the same box (an external Caddy)
+# does NOT use this file — Caddy allows only one global block per config, which
+# that edge owns. It instead `import`s sites.caddy directly and declares the
+# on_demand_tls ask + trusted_proxies in its own global block. Keeping the
+# routing in sites.caddy means there is one source of truth for both modes.
+{
+	servers {
+		# With trusted_proxies set, Caddy strips any X-Forwarded-For entries it
+		# cannot vouch for and writes a single trustworthy hop — the client IP
+		# from Caddy's own listener. The backend's clientIPForRateLimit reads
+		# the RIGHTMOST entry, so this pairs to deny client-supplied XFF spoofs.
+		trusted_proxies static private_ranges
+	}
+
+	# Org custom domains (direct-TLS mode only): Caddy provisions a Let's Encrypt
+	# cert on first request to an unknown SNI host, but ONLY if this ask endpoint
+	# returns 200 — i.e. the host is an ACTIVE org_hostname. Without the gate,
+	# anyone pointing DNS at the box could force unbounded cert issuance. Caddy
+	# appends ?domain=<host>; the backend answers 200/404. Reached container-to-
+	# container, so it bypasses the public site blocks (which 404 /api/internal/*).
+	on_demand_tls {
+		ask http://{$TELA_UPSTREAM_BACKEND:backend:8080}/api/internal/tls-check
+	}
+}
+
+import sites.caddy

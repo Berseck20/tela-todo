@@ -1,0 +1,558 @@
+{
+  "blocks": [
+    {
+      "id": "h1",
+      "label": "Heading 1",
+      "hint": "Large section heading",
+      "category": "Text",
+      "slash": true,
+      "agent": false,
+      "keywords": [
+        "h1",
+        "heading 1",
+        "heading",
+        "title"
+      ],
+      "syntax": "# Heading"
+    },
+    {
+      "id": "h2",
+      "label": "Heading 2",
+      "hint": "Medium section heading",
+      "category": "Text",
+      "slash": true,
+      "agent": false,
+      "keywords": [
+        "h2",
+        "heading 2",
+        "heading",
+        "subtitle"
+      ],
+      "syntax": "## Heading"
+    },
+    {
+      "id": "h3",
+      "label": "Heading 3",
+      "hint": "Small section heading",
+      "category": "Text",
+      "slash": true,
+      "agent": false,
+      "keywords": [
+        "h3",
+        "heading 3",
+        "heading"
+      ],
+      "syntax": "### Heading"
+    },
+    {
+      "id": "bullet-list",
+      "label": "Bulleted list",
+      "hint": "Unordered list",
+      "category": "Text",
+      "slash": true,
+      "agent": false,
+      "keywords": [
+        "bullet",
+        "unordered",
+        "list",
+        "ul"
+      ],
+      "syntax": "- Item\n- Item"
+    },
+    {
+      "id": "ordered-list",
+      "label": "Numbered list",
+      "hint": "Ordered list",
+      "category": "Text",
+      "slash": true,
+      "agent": false,
+      "keywords": [
+        "numbered",
+        "ordered",
+        "list",
+        "ol"
+      ],
+      "syntax": "1. Item\n2. Item"
+    },
+    {
+      "id": "task-list",
+      "label": "To-do list",
+      "hint": "Checkbox / task list",
+      "category": "Lists & tables",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "todo",
+        "to-do",
+        "task",
+        "checkbox",
+        "checklist",
+        "check"
+      ],
+      "syntax": "- [ ] Open task\n- [x] Done task",
+      "when": "A checklist of toggleable items."
+    },
+    {
+      "id": "quote",
+      "label": "Quote",
+      "hint": "Block quote",
+      "category": "Text",
+      "slash": true,
+      "agent": false,
+      "keywords": [
+        "quote",
+        "blockquote"
+      ],
+      "syntax": "> Quoted text"
+    },
+    {
+      "id": "pull-quote",
+      "label": "Pull quote",
+      "hint": "Elevated quote with attribution",
+      "category": "Callouts & quotes",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "pullquote",
+        "pull quote",
+        "quote",
+        "epigraph",
+        "citation"
+      ],
+      "syntax": ":::quote{cite=\"Ada Lovelace\"}\nThe quoted text.\n:::",
+      "when": "Feature a quotation or epigraph, set apart from body text.",
+      "note": "The cite attribute is optional.",
+      "directive": "quote"
+    },
+    {
+      "id": "callout",
+      "label": "Callout",
+      "hint": "Note / tip / warning admonition",
+      "category": "Callouts & quotes",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "callout",
+        "note",
+        "tip",
+        "warning",
+        "important",
+        "caution",
+        "admonition",
+        "alert"
+      ],
+      "syntax": "> [!NOTE]\n> Body text here.",
+      "when": "Set off an aside, tip, or warning so it stands out from body text.",
+      "note": "Type is one of NOTE, TIP, IMPORTANT, WARNING, CAUTION."
+    },
+    {
+      "id": "collapsible",
+      "label": "Collapsible",
+      "hint": "Toggleable details block",
+      "category": "Layout",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "collapsible",
+        "details",
+        "toggle",
+        "disclosure",
+        "expand"
+      ],
+      "syntax": "<details><summary>Summary label</summary>\n\nHidden body content.\n\n</details>",
+      "when": "Hide long or secondary content behind a toggle.",
+      "note": "Blank lines around the body are required. Add `open` to <details> to start expanded."
+    },
+    {
+      "id": "tabs",
+      "label": "Tabs",
+      "hint": "Tabbed sections",
+      "category": "Layout",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "tabs",
+        "tab",
+        "tabbed",
+        "sections"
+      ],
+      "syntax": ":::tabs\n### First tab\nContent for the first tab.\n\n### Second tab\nContent for the second tab.\n:::",
+      "when": "Show alternative content in the same space (e.g. per-language examples).",
+      "note": "Each ### heading inside the block becomes a tab label.",
+      "directive": "tabs"
+    },
+    {
+      "id": "kanban",
+      "label": "Kanban board",
+      "hint": "Columns of draggable cards",
+      "category": "Layout",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "kanban",
+        "board",
+        "columns",
+        "cards",
+        "todo"
+      ],
+      "syntax": ":::kanban\n### To do\n- [ ] A card\n\n### In progress\n- [ ] Another card\n:::",
+      "when": "A board of columns holding draggable cards.",
+      "note": "Each ### heading is a column; bullet items are its cards.",
+      "directive": "kanban"
+    },
+    {
+      "id": "stat-grid",
+      "label": "Stat grid",
+      "hint": "KPI tiles with trend",
+      "category": "Data",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "stat",
+        "stats",
+        "kpi",
+        "metric",
+        "dashboard",
+        "tiles",
+        "scorecard",
+        "numbers"
+      ],
+      "syntax": ":::stats\n### Solar PV LCOE\n**$43** /MWh\n\n↓ 90% since 2010\n\nGlobal weighted average (IRENA)\n:::",
+      "when": "Show a row of headline numbers / KPIs, each with a label, value, and optional trend.",
+      "note": "Each ### heading is a tile. Inside it, separate lines with blank lines: a value (bold the number — any trailing text becomes a small unit), an optional trend line starting with ↑/↓/→ or +/- (rendered coloured — green up, red down), and an optional muted description line.",
+      "directive": "stats"
+    },
+    {
+      "id": "timeline",
+      "label": "Timeline",
+      "hint": "Dated events on a rail",
+      "category": "Data",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "timeline",
+        "roadmap",
+        "history",
+        "events",
+        "milestones",
+        "chronology"
+      ],
+      "syntax": ":::timeline\n- **2026-01-15** v1.0 shipped — first stable release\n- **2026-03-01** v1.1 — search + exports\n:::",
+      "when": "Show a chronological sequence of dated events (roadmap, release history).",
+      "note": "Each bullet is an event; lead with a bold date. Put them in chronological order yourself.",
+      "directive": "timeline"
+    },
+    {
+      "id": "calendar",
+      "label": "Calendar",
+      "hint": "Month grid of events",
+      "category": "Data",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "calendar",
+        "month",
+        "schedule",
+        "dates",
+        "plan",
+        "events"
+      ],
+      "syntax": ":::calendar{month=2026-05}\n- 2026-05-04 Spec freeze\n- 2026-05-28 GA launch\n:::",
+      "when": "Lay out dated, all-day events on a single month grid (schedules, launch plans).",
+      "note": "Set month=YYYY-MM on the directive. Each bullet is `YYYY-MM-DD Title` inside that month. One month per block; all-day only.",
+      "directive": "calendar"
+    },
+    {
+      "id": "poll",
+      "label": "Poll",
+      "hint": "Vote on options, see who voted",
+      "category": "Data",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "poll",
+        "vote",
+        "survey",
+        "ballot",
+        "election",
+        "choice"
+      ],
+      "syntax": ":::poll{id=\"lunch\"}\n### Where for lunch?\n\n- Lisbon\n- Berlin\n- Barcelona\n:::",
+      "when": "Let readers vote on a set of options; results show counts, bars, and who voted for what.",
+      "note": "Options are top-level list items. Give the block a unique `id`. Votes are recorded in the body as nested `- @username` items under an option — voting happens in the read view (editors only), so you normally don't hand-write voters. `closed` on the directive freezes results.",
+      "directive": "poll"
+    },
+    {
+      "id": "chart",
+      "label": "Chart",
+      "hint": "Bar / line / pie (interactive)",
+      "category": "Data",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "chart",
+        "graph",
+        "bar",
+        "line",
+        "pie",
+        "donut",
+        "scatter",
+        "plot",
+        "visualization",
+        "data"
+      ],
+      "syntax": "```chart\ntype: bar\ntitle: Quarterly revenue\nx: [Q1, Q2, Q3, Q4]\nseries:\n  - name: Revenue\n    data: [120, 145, 180, 210]\n```",
+      "when": "Plot quantitative data — a bar, line, area, scatter, pie, or donut chart.",
+      "note": "A ```chart fenced block with a YAML spec. `type`: bar | grouped-bar | stacked-bar | line | area | scatter | pie | donut. xy/category charts use `x` (categories) + `series: [{name, data}]`; pie/donut use `data: [{label, value}]`. Renders interactively (hover tooltips, clickable legend) and follows the page theme."
+    },
+    {
+      "id": "embed",
+      "label": "Embed",
+      "hint": "YouTube, Vimeo, Loom, or a link",
+      "category": "Media & diagrams",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "embed",
+        "video",
+        "youtube",
+        "vimeo",
+        "loom",
+        "iframe"
+      ],
+      "syntax": ":::embed\nhttps://www.youtube.com/watch?v=ID\n:::",
+      "when": "Embed a video or external page inline.",
+      "note": "YouTube, Vimeo, and Loom render as players; other URLs become link cards.",
+      "directive": "embed"
+    },
+    {
+      "id": "mermaid",
+      "label": "Mermaid diagram",
+      "hint": "Diagram from text",
+      "category": "Media & diagrams",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "mermaid",
+        "diagram",
+        "flowchart",
+        "graph",
+        "sequence",
+        "handdrawn",
+        "elk"
+      ],
+      "syntax": "```mermaid\ngraph TD\n  A[Start] --> B[End]\n```",
+      "when": "Flowcharts, sequence/class/state/ER/gantt/pie/git/journey — anything Mermaid supports. Colours follow the page theme automatically. Opt into extras with YAML frontmatter at the top of the diagram body: `---\\nconfig:\\n  look: handDrawn\\n---` for a hand-drawn sketch style, or `layout: elk` for tighter routing on dense graphs."
+    },
+    {
+      "id": "excalidraw",
+      "label": "Drawing",
+      "hint": "Hand-drawn diagram",
+      "category": "Media & diagrams",
+      "slash": true,
+      "agent": false,
+      "keywords": [
+        "excalidraw",
+        "diagram",
+        "drawing",
+        "sketch",
+        "whiteboard"
+      ],
+      "syntax": "```excalidraw\n{ ... scene JSON ... }\n```",
+      "when": "Hand-drawn diagram / whiteboard.",
+      "note": "Authored visually in the editor — not meant to be hand-written by agents."
+    },
+    {
+      "id": "image",
+      "label": "Image",
+      "hint": "Embedded image",
+      "category": "Media & diagrams",
+      "slash": false,
+      "agent": true,
+      "keywords": [],
+      "syntax": "![alt text](https://example.com/image.png)",
+      "when": "Embed an image.",
+      "note": "In the editor, drag-drop or paste uploads the file automatically."
+    },
+    {
+      "id": "file",
+      "label": "File attachment",
+      "hint": "Downloadable file card",
+      "category": "Media & diagrams",
+      "slash": false,
+      "agent": true,
+      "keywords": [
+        "file",
+        "attachment",
+        "download",
+        "pdf"
+      ],
+      "syntax": ":::file{name=\"report.pdf\" size=\"248000\"}\nhttps://tela.example/api/files/9/<hash>.pdf\n:::",
+      "when": "Embed a downloadable file (PDF, archive, dataset) as a card.",
+      "note": "In the editor, drag-drop or paste any non-image file to upload + insert this automatically. The URL must be a tela file URL (an existing attachment); images use the image block instead.",
+      "directive": "file"
+    },
+    {
+      "id": "code",
+      "label": "Code block",
+      "hint": "Syntax-highlighted code",
+      "category": "Code & math",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "code",
+        "codeblock",
+        "pre"
+      ],
+      "syntax": "```ts\nconst x = 1\n```",
+      "when": "Syntax-highlighted code with a copy button.",
+      "note": "Put the language right after the opening fence."
+    },
+    {
+      "id": "equation",
+      "label": "Equation",
+      "hint": "Block math (LaTeX)",
+      "category": "Code & math",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "math",
+        "equation",
+        "latex",
+        "katex",
+        "formula",
+        "tex"
+      ],
+      "syntax": "$$\nE = mc^2\n$$",
+      "when": "Display a standalone mathematical formula (KaTeX/LaTeX)."
+    },
+    {
+      "id": "inline-math",
+      "label": "Inline math",
+      "hint": "Inline LaTeX",
+      "category": "Code & math",
+      "slash": false,
+      "agent": true,
+      "keywords": [],
+      "syntax": "Euler's identity $$e^{i\\pi}+1=0$$ is elegant.",
+      "when": "Inline LaTeX within a sentence.",
+      "note": "Inline math uses DOUBLE dollars, and no space directly inside the $$…$$ delimiters. A single $ is never math, so prices ($3,500) are safe to write as-is."
+    },
+    {
+      "id": "divider",
+      "label": "Divider",
+      "hint": "Horizontal rule",
+      "category": "Text",
+      "slash": true,
+      "agent": false,
+      "keywords": [
+        "hr",
+        "divider",
+        "separator",
+        "rule"
+      ],
+      "syntax": "---"
+    },
+    {
+      "id": "table",
+      "label": "Table",
+      "hint": "3 rows x 2 cols",
+      "category": "Lists & tables",
+      "slash": true,
+      "agent": true,
+      "keywords": [
+        "table",
+        "grid",
+        "comparison",
+        "matrix",
+        "checklist",
+        "sortable"
+      ],
+      "syntax": "| Feature | Free | Pro |\n| --- | --- | --- |\n| SSO | cross | check |\n| Seats | 3 | dash |",
+      "when": "Tabular data, comparisons, and feature matrices (GitHub-flavored markdown).",
+      "note": "Upgrades that round-trip as plain markdown: a cell that is exactly `check`, `cross`, or `dash` (also ✓/✗/–, yes/no, n/a) renders as a green ✓ / red ✗ / muted – icon — ideal for feature-comparison grids. The first column pins when a wide table scrolls, and when reading, large tables (8+ rows) get clickable sort headers + a filter box. Keep it narrow enough to read: past roughly ten prose columns the page column shows only a fraction and the rest sits behind a horizontal scroll — data that wide belongs in a sheet page (sheet: true), linked from the doc."
+    },
+    {
+      "id": "highlight",
+      "label": "Highlight",
+      "hint": "Marked text",
+      "category": "Inline marks",
+      "slash": false,
+      "agent": true,
+      "keywords": [],
+      "syntax": "This is ==highlighted== text.",
+      "when": "Mark a span as if with a highlighter pen."
+    },
+    {
+      "id": "wikilink",
+      "label": "Wikilink",
+      "hint": "Link to another page",
+      "category": "Inline marks",
+      "slash": false,
+      "agent": true,
+      "keywords": [],
+      "syntax": "[[Page Title]]   [[Page Title|shown text]]   [[Page Title#Heading]]",
+      "when": "Link to another page in the same space by title; records a backlink.",
+      "note": "Resolved by title within the space. tela://page/{id} also works as a link target."
+    },
+    {
+      "id": "footnote",
+      "label": "Footnote",
+      "hint": "Footnote with back-reference",
+      "category": "Inline marks",
+      "slash": false,
+      "agent": true,
+      "keywords": [],
+      "syntax": "A claim that needs a source.[^1]\n\n[^1]: The supporting note.",
+      "when": "Add a footnote; the reader renders an auto-numbered back-reference."
+    },
+    {
+      "id": "date",
+      "label": "Date",
+      "hint": "Insert today's date",
+      "category": "Utility",
+      "slash": true,
+      "agent": false,
+      "keywords": [
+        "date",
+        "today",
+        "now"
+      ],
+      "syntax": "YYYY-MM-DD"
+    },
+    {
+      "id": "emoji",
+      "label": "Emoji",
+      "hint": "Pick an emoji",
+      "category": "Utility",
+      "slash": true,
+      "agent": false,
+      "keywords": [
+        "emoji",
+        "emoticon",
+        "smiley",
+        "icon",
+        "reaction"
+      ],
+      "syntax": ":rocket:"
+    }
+  ],
+  "directives": [
+    "quote",
+    "tabs",
+    "kanban",
+    "stats",
+    "embed",
+    "file",
+    "calendar",
+    "timeline",
+    "poll"
+  ],
+  "calloutTypes": [
+    "note",
+    "tip",
+    "important",
+    "warning",
+    "caution"
+  ]
+}

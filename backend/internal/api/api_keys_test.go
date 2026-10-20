@@ -1,0 +1,354 @@
+package api
+
+import (
+	"bytes"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/zcag/tela/backend/internal/auth"
+	"github.com/zcag/tela/backend/internal/testdb"
+)
+
+// newWiredServerOnDisk returns a wired httptest.Server backed by a fresh
+// throwaway Postgres database. (The name is retained because callers depend on
+// it; the old "modernc :memory: is per-connection" rationale is obsolete now
+// that every test gets its own real Postgres database shared across the pool.)
+func newWiredServerOnDisk(t *testing.T) (*httptest.Server, *sql.DB) {
+	t.Helper()
+	t.Setenv("TELA_SHARE_SECRET", "tela-test-share-secret-fixed-32-byte!")
+	d := testdb.New(t)
+	ts := httptest.NewServer(Handler(d))
+	t.Cleanup(ts.Close)
+	return ts, d
+}
+
+// apiKeyEnvelope is the wire shape returned by CRUD endpoints.
+type apiKeyEnvelope struct {
+	APIKey apiKeyDTO `json:"api_key"`
+}
+
+type apiKeyListEnvelope struct {
+	APIKeys []apiKeyDTO `json:"api_keys"`
+}
+
+// bearerRequest issues a request against the wired httptest.Server using a
+// raw bearer token instead of a session cookie. Mirrors the
+// Authorization-header path the production middleware takes.
+func bearerRequest(t *testing.T, method, url, token, body string) *http.Response {
+	t.Helper()
+	var rdr io.Reader
+	if body != "" {
+		rdr = strings.NewReader(body)
+	}
+	req, err := http.NewRequest(method, url, rdr)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	return resp
+}
+
+// TestAPIKeys_CreateThenListReturnsKeyOnce locks the cardinal rule: the raw
+// `key` field is populated on create, then NEVER again. Subsequent list
+// responses return key_prefix only.
+func TestAPIKeys_CreateThenListReturnsKeyOnce(t *testing.T) {
+	t.Setenv("TELA_API_KEY_SECRET", "deadbeef00112233445566778899aabbccddeeff00112233445566778899aabb")
+	auth.ResetAPIKeySecretCache()
+	ts, d := newWiredServer(t)
+	seedUser(t, d, "admin", "adminpw12", true)
+	adminC := loginClient(t, ts, "admin", "adminpw12")
+
+	resp, err := adminC.Post(ts.URL+"/api/api_keys", "application/json",
+		strings.NewReader(`{"name":"agent-1","scope":"write"}`))
+	if err != nil {
+		t.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		b, _ := io.ReadAll(resp.Body)
+		t.Fatalf("create status=%d body=%s", resp.StatusCode, b)
+	}
+	var created apiKeyEnvelope
+	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if created.APIKey.Key == "" {
+		t.Fatalf("create response missing raw key")
+	}
+	if !strings.HasPrefix(created.APIKey.Key, "tela_pat_") {
+		t.Fatalf("raw key %q missing tela_pat_ prefix", created.APIKey.Key)
+	}
+	// key_prefix is the first 8 chars of the random body (after the
+	// `tela_pat_` preamble) so rows in the UI list can be told apart. Slicing
+	// raw[:8] would yield the literal "tela_pat" for every key.
+	wantPrefix := created.APIKey.Key[len(auth.TokenPrefix) : len(auth.TokenPrefix)+8]
+	if created.APIKey.KeyPrefix != wantPrefix {
+		t.Fatalf("key_prefix=%q want %q (first 8 chars of body)", created.APIKey.KeyPrefix, wantPrefix)
+	}
+	if created.APIKey.KeyPrefix == "tela_pat" {
+		t.Fatalf("key_prefix collapsed to format preamble — slicing bug regressed")
+	}
+
+	// LIST must not return the raw key.
+	resp, err = adminC.Get(ts.URL + "/api/api_keys")
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list status=%d", resp.StatusCode)
+	}
+	var listed apiKeyListEnvelope
+	if err := json.NewDecoder(resp.Body).Decode(&listed); err != nil {
+		t.Fatalf("decode list: %v", err)
+	}
+	if len(listed.APIKeys) != 1 {
+		t.Fatalf("list len=%d, want 1", len(listed.APIKeys))
+	}
+	if listed.APIKeys[0].Key != "" {
+		t.Fatalf("list response leaked raw key: %q", listed.APIKeys[0].Key)
+	}
+	if listed.APIKeys[0].KeyPrefix != created.APIKey.KeyPrefix {
+		t.Fatalf("list key_prefix=%q, want %q", listed.APIKeys[0].KeyPrefix, created.APIKey.KeyPrefix)
+	}
+}
+
+// TestAPIKeys_RevokeIsSoftAndIdempotent — DELETE stamps revoked_at; a second
+// DELETE is a no-op 204; bearer auth on the revoked key returns 401.
+func TestAPIKeys_RevokeIsSoftAndIdempotent(t *testing.T) {
+	t.Setenv("TELA_API_KEY_SECRET", "deadbeef00112233445566778899aabbccddeeff00112233445566778899aabb")
+	auth.ResetAPIKeySecretCache()
+	ts, d := newWiredServerOnDisk(t)
+	seedUser(t, d, "admin", "adminpw12", true)
+	adminC := loginClient(t, ts, "admin", "adminpw12")
+
+	resp, err := adminC.Post(ts.URL+"/api/api_keys", "application/json",
+		strings.NewReader(`{"name":"agent-1","scope":"read"}`))
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	var created apiKeyEnvelope
+	_ = json.NewDecoder(resp.Body).Decode(&created)
+	resp.Body.Close()
+
+	rawKey := created.APIKey.Key
+	keyID := created.APIKey.ID
+
+	// First DELETE → 204, stamp revoked_at.
+	resp, err = deleteReq(adminC, fmt.Sprintf("%s/api/api_keys/%d", ts.URL, keyID))
+	if err != nil {
+		t.Fatalf("delete 1: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete 1 status=%d want 204", resp.StatusCode)
+	}
+
+	// Second DELETE → 204 again (idempotent).
+	resp, err = deleteReq(adminC, fmt.Sprintf("%s/api/api_keys/%d", ts.URL, keyID))
+	if err != nil {
+		t.Fatalf("delete 2: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete 2 status=%d want 204", resp.StatusCode)
+	}
+
+	// Bearer auth with the revoked key → 401.
+	r := bearerRequest(t, http.MethodGet, ts.URL+"/api/spaces", rawKey, "")
+	defer r.Body.Close()
+	if r.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("revoked bearer status=%d want 401", r.StatusCode)
+	}
+}
+
+// TestAPIKeys_BearerReadScopeBlocksWrite asserts the canonical scope rule
+// in the wired stack: GET /api/spaces succeeds, POST /api/spaces 403s with
+// api_key_scope. Mirrors the middleware-level test but goes through the
+// real handler chain.
+func TestAPIKeys_BearerReadScopeBlocksWrite(t *testing.T) {
+	t.Setenv("TELA_API_KEY_SECRET", "deadbeef00112233445566778899aabbccddeeff00112233445566778899aabb")
+	auth.ResetAPIKeySecretCache()
+	ts, d := newWiredServerOnDisk(t)
+	uid := seedUser(t, d, "admin", "adminpw12", true)
+	rawKey, prefix, _, _ := auth.NewAPIKey(auth.LoadAPIKeySecret())
+	if _, err := d.ExecContext(context.Background(), `
+		INSERT INTO api_keys (user_id, name, key_prefix, key_hmac, scope, space_id)
+		VALUES ($1, 'k', $2, $3, 'read', NULL)`,
+		uid, prefix, auth.HMACAPIKey(auth.LoadAPIKeySecret(), rawKey)); err != nil {
+		t.Fatalf("seed key: %v", err)
+	}
+
+	// GET passes (read scope + GET).
+	r := bearerRequest(t, http.MethodGet, ts.URL+"/api/spaces", rawKey, "")
+	r.Body.Close()
+	if r.StatusCode != http.StatusOK {
+		t.Fatalf("GET status=%d want 200", r.StatusCode)
+	}
+	// POST blocks with api_key_scope.
+	r = bearerRequest(t, http.MethodPost, ts.URL+"/api/spaces", rawKey, `{"name":"X","slug":"x"}`)
+	body, _ := io.ReadAll(r.Body)
+	r.Body.Close()
+	if r.StatusCode != http.StatusForbidden {
+		t.Fatalf("POST status=%d want 403 (body=%s)", r.StatusCode, body)
+	}
+	if !strings.Contains(string(body), `"code":"api_key_scope"`) {
+		t.Fatalf("POST body=%s missing api_key_scope envelope", body)
+	}
+}
+
+// TestAPIKeys_BearerSpaceRestrictionGatesPageAccess asserts the per-space
+// gate: a key restricted to space A returns 403 api_key_space_scope when
+// asked about any page in space B, even if the underlying user is a member
+// of both.
+func TestAPIKeys_BearerSpaceRestrictionGatesPageAccess(t *testing.T) {
+	t.Setenv("TELA_API_KEY_SECRET", "deadbeef00112233445566778899aabbccddeeff00112233445566778899aabb")
+	auth.ResetAPIKeySecretCache()
+	ts, d := newWiredServerOnDisk(t)
+	uid := seedUser(t, d, "admin", "adminpw12", true)
+	spaceA := seedSpace(t, d, "A", "a", uid)
+	spaceB := seedSpace(t, d, "B", "b", uid)
+	pageInA := seedPageInSpace(t, d, spaceA, nil, "p-a", "body-a")
+	pageInB := seedPageInSpace(t, d, spaceB, nil, "p-b", "body-b")
+
+	// Issue a key scoped to spaceA only.
+	rawKey, prefix, _, _ := auth.NewAPIKey(auth.LoadAPIKeySecret())
+	if _, err := d.ExecContext(context.Background(), `
+		INSERT INTO api_keys (user_id, name, key_prefix, key_hmac, scope, space_id)
+		VALUES ($1, 'spaceA-only', $2, $3, 'write', $4)`,
+		uid, prefix, auth.HMACAPIKey(auth.LoadAPIKeySecret(), rawKey), spaceA); err != nil {
+		t.Fatalf("seed key: %v", err)
+	}
+
+	// Page in scoped space → 200.
+	r := bearerRequest(t, http.MethodGet, fmt.Sprintf("%s/api/pages/%d", ts.URL, pageInA), rawKey, "")
+	r.Body.Close()
+	if r.StatusCode != http.StatusOK {
+		t.Fatalf("in-scope page status=%d want 200", r.StatusCode)
+	}
+	// Page outside scoped space → 403 api_key_space_scope.
+	r = bearerRequest(t, http.MethodGet, fmt.Sprintf("%s/api/pages/%d", ts.URL, pageInB), rawKey, "")
+	body, _ := io.ReadAll(r.Body)
+	r.Body.Close()
+	if r.StatusCode != http.StatusForbidden {
+		t.Fatalf("out-of-scope page status=%d want 403 (body=%s)", r.StatusCode, body)
+	}
+	if !strings.Contains(string(body), `"code":"api_key_space_scope"`) {
+		t.Fatalf("out-of-scope body=%s missing api_key_space_scope envelope", body)
+	}
+	// Cross-space list query (?space_id=B) → 403 api_key_space_scope too.
+	r = bearerRequest(t, http.MethodGet, fmt.Sprintf("%s/api/pages?space_id=%d", ts.URL, spaceB), rawKey, "")
+	body, _ = io.ReadAll(r.Body)
+	r.Body.Close()
+	if r.StatusCode != http.StatusForbidden {
+		t.Fatalf("list?space_id=B status=%d want 403 (body=%s)", r.StatusCode, body)
+	}
+	if !strings.Contains(string(body), `"code":"api_key_space_scope"`) {
+		t.Fatalf("list body=%s missing api_key_space_scope envelope", body)
+	}
+}
+
+// TestAPIKeys_NonAdminCookieRejected ensures a logged-in non-admin can't
+// create / list keys.
+// TestAPIKeys_SelfServeForNonAdmin — a regular user manages their OWN keys:
+// they can create a read/write key and list it, but CANNOT mint an admin-scoped
+// key (that stays instance-admin-only), and ListAPIKeys is scoped to their own.
+func TestAPIKeys_SelfServeForNonAdmin(t *testing.T) {
+	t.Setenv("TELA_API_KEY_SECRET", "deadbeef00112233445566778899aabbccddeeff00112233445566778899aabb")
+	auth.ResetAPIKeySecretCache()
+	ts, d := newWiredServerOnDisk(t)
+	seedUser(t, d, "admin", "adminpw12", true)
+	seedUser(t, d, "bob", "bobpw1234", false)
+	adminC := loginClient(t, ts, "admin", "adminpw12")
+	bobC := loginClient(t, ts, "bob", "bobpw1234")
+
+	// Admin mints a key for themselves — bob must never see it.
+	if r, _ := adminC.Post(ts.URL+"/api/api_keys", "application/json",
+		strings.NewReader(`{"name":"admin-key","scope":"admin"}`)); r.StatusCode != http.StatusCreated {
+		t.Fatalf("admin create status=%d want 201", r.StatusCode)
+	} else {
+		r.Body.Close()
+	}
+
+	// Bob self-creates a write key — now allowed.
+	r, _ := bobC.Post(ts.URL+"/api/api_keys", "application/json",
+		strings.NewReader(`{"name":"bobs-laptop","scope":"write"}`))
+	if r.StatusCode != http.StatusCreated {
+		b, _ := io.ReadAll(r.Body)
+		t.Fatalf("bob create status=%d want 201 (%s)", r.StatusCode, b)
+	}
+	r.Body.Close()
+
+	// Bob cannot mint an admin-scoped key.
+	r, _ = bobC.Post(ts.URL+"/api/api_keys", "application/json",
+		strings.NewReader(`{"name":"escalate","scope":"admin"}`))
+	if r.StatusCode != http.StatusForbidden {
+		t.Fatalf("bob admin-scope create status=%d want 403", r.StatusCode)
+	}
+	r.Body.Close()
+
+	// Bob's list shows only his own key, not the admin's.
+	r, _ = bobC.Get(ts.URL + "/api/api_keys")
+	if r.StatusCode != http.StatusOK {
+		t.Fatalf("bob list status=%d want 200", r.StatusCode)
+	}
+	var out struct {
+		APIKeys []apiKeyDTO `json:"api_keys"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&out); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	r.Body.Close()
+	if len(out.APIKeys) != 1 || out.APIKeys[0].Name != "bobs-laptop" {
+		t.Fatalf("bob list = %+v, want only his own key", out.APIKeys)
+	}
+}
+
+// TestAPIKeys_CreateValidatesPayload — happy-path validation: bad scope,
+// empty name, non-future expires_at, non-existent space_id all 400.
+func TestAPIKeys_CreateValidatesPayload(t *testing.T) {
+	t.Setenv("TELA_API_KEY_SECRET", "deadbeef00112233445566778899aabbccddeeff00112233445566778899aabb")
+	auth.ResetAPIKeySecretCache()
+	ts, d := newWiredServer(t)
+	seedUser(t, d, "admin", "adminpw12", true)
+	adminC := loginClient(t, ts, "admin", "adminpw12")
+
+	cases := []struct {
+		name string
+		body string
+		want int
+		code string
+	}{
+		{"empty name", `{"name":"","scope":"read"}`, http.StatusBadRequest, "bad_request"},
+		{"bad scope", `{"name":"k","scope":"superuser"}`, http.StatusBadRequest, "bad_request"},
+		{"past expires_at", `{"name":"k","scope":"read","expires_at":"2000-01-01 00:00:00"}`, http.StatusBadRequest, "bad_request"},
+		{"unknown space", `{"name":"k","scope":"read","space_id":9999}`, http.StatusBadRequest, "space_not_found"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r, _ := adminC.Post(ts.URL+"/api/api_keys", "application/json", bytes.NewBufferString(tc.body))
+			body, _ := io.ReadAll(r.Body)
+			r.Body.Close()
+			if r.StatusCode != tc.want {
+				t.Fatalf("status=%d want %d (body=%s)", r.StatusCode, tc.want, body)
+			}
+			if !strings.Contains(string(body), `"code":"`+tc.code+`"`) {
+				t.Fatalf("body=%s missing %s code", body, tc.code)
+			}
+		})
+	}
+}

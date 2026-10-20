@@ -1,0 +1,868 @@
+/* Reading mode (#3). A full-bleed, chrome-free, read-only view of a page.
+   The body still renders through the same MilkdownEditor (.tela-milkdown) as
+   the editor + share reader, so all rich content is free; this file only
+   (1) elevates the prose typography for reading, (2) lays out the reader
+   chrome (top bar, progress, TOC rail, article column), and (3) defines the
+   print stylesheet that doubles as "Save as PDF".
+
+   All sizing scales off a single per-reader custom property
+   (--reading-font-size) so the S/M/L preference moves the whole scale; prose
+   children are sized in `em` relative to the article font-size. */
+@layer components {
+  .tela-reader {
+    /* Medium (default) = 17px — a gentle bump over the editor's 16px without
+       tipping into editorial sizing. [data-reading-size] overrides below;
+       "Small" returns to the app's native 16px, "Large" is 20px. */
+    --reading-font-size: 1.0625rem;
+    --reading-font-family: var(--font-sans);
+    /* Measure tracks the font size so line length stays ~75 characters at
+       every size step (the metric that actually governs readability) instead
+       of ballooning when the text shrinks. ~38em ≈ 75ch for this sans. */
+    --reading-measure: calc(var(--reading-font-size) * 38);
+
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
+    background: var(--surface-1);
+    color: var(--text-primary);
+  }
+  .tela-reader[data-reading-size='s'] {
+    --reading-font-size: 1rem;
+  }
+  .tela-reader[data-reading-size='l'] {
+    --reading-font-size: 1.25rem;
+  }
+  .tela-reader[data-reading-font='serif'] {
+    --reading-font-family: var(--font-serif);
+  }
+
+  /* Reading-progress bar — fixed sliver at the very top, scaled on the X axis
+     via a CSS var the component updates on scroll. Compositor-only. */
+  .reader-progress {
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: 2px;
+    z-index: 30;
+    transform-origin: left;
+    transform: scaleX(var(--reader-progress, 0));
+    background: var(--accent);
+    will-change: transform;
+  }
+
+  /* Top bar — sticky, translucent, calm. Holds close + title on the left,
+     reader controls on the right. */
+  .reader-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    /* Pull the bar's top edge 3px above the viewport (clipped) and pad it back,
+       so the position/height are unchanged but Chromium's unfiltered top-row
+       backdrop-filter artifact — a 1-2px sharp sliver of the content scrolling
+       behind the frosted bar — sits off-screen instead of along the top edge. */
+    margin-top: -3px;
+    padding: calc(var(--space-3) + 3px) var(--space-5) var(--space-3);
+    border-bottom: 1px solid transparent;
+    background: color-mix(in srgb, var(--surface-1) 82%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: border-color var(--duration-base) var(--ease-out);
+  }
+  .reader-topbar[data-scrolled='true'] {
+    border-bottom-color: var(--border-subtle);
+  }
+  .reader-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+  }
+  .reader-topbar-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+  }
+  .reader-topbar-right {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-shrink: 0;
+  }
+
+  /* Body row — holds the optional left rail (share subtree nav) beside the
+     scroll context. A single flex child (no sidebar) is layout-equivalent to
+     the scroll container sitting directly under .tela-reader. */
+  .reader-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+  }
+
+  /* Scroll container — the reader's own scroll context (TOC scroll-spy +
+     progress read from it). */
+  .reader-scroll {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    /* clip (not the default computed `auto`) so this stays a *vertical-only*
+       scroller. With overflow-x left visible it computes to auto, making the box
+       a two-axis scroller with a phantom horizontal axis; when the page is
+       pinch-zoomed, Firefox/Chrome Android route a one-finger horizontal drag to
+       that dead axis instead of panning the magnified page, so the doc won't move
+       sideways. `clip` removes the horizontal scroll axis entirely. */
+    overflow-x: clip;
+    overscroll-behavior: contain;
+  }
+  /* Touch: release the reader's inner scroll frame so a pinch-zoomed page can be
+     panned sideways (see index.css coarse note) — the released content scrolls
+     whatever encloses the reader instead. Height must go with it: pinned at
+     100dvh the released content just overflows a fixed-size box, which the
+     *document* still scrolls (the /share route) but a `position: fixed` overlay
+     does not — that's the authed ?view=read shape, where it left the reader
+     literally unscrollable past the first screenful. The overlay opts into being
+     that scroller (pointer-coarse:overflow-y-auto in PageView). */
+  @media (pointer: coarse) {
+    .reader-scroll {
+      overflow: visible;
+    }
+    .tela-reader {
+      height: auto;
+      min-height: 100dvh;
+    }
+  }
+
+  /* Centered layout. Single column by default; on wide viewports a sticky TOC
+     rail joins to the left and the [rail | article] pair is centered. */
+  /* Single column by default. On wide viewports a symmetric 3-column track
+     [gutter | measure | gutter] keeps the article dead-centre in the viewport;
+     the TOC lives in the left gutter (so it never shoves the column off-axis)
+     and the right gutter mirrors it. */
+  .reader-grid {
+    margin: 0 auto;
+    max-width: 88rem;
+    padding: var(--space-8) var(--space-6) calc(var(--space-8) * 3);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  @media (min-width: 80rem) {
+    .reader-grid {
+      grid-template-columns: 1fr minmax(0, var(--reading-measure)) 1fr;
+      column-gap: var(--space-8);
+      align-items: start;
+    }
+  }
+
+  .reader-article {
+    width: 100%;
+    max-width: var(--reading-measure);
+    margin: 0 auto;
+    min-width: 0;
+  }
+
+  /* Page title + meta. */
+  .reader-title {
+    margin: 0 0 var(--space-3);
+    font-family: var(--reading-font-family);
+    font-size: calc(var(--reading-font-size) * 2.1);
+    line-height: var(--reading-leading-tight);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: var(--text-primary);
+  }
+  .reader-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-7);
+    padding-bottom: var(--space-5);
+    border-bottom: 1px solid var(--border-subtle);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+  }
+  .reader-meta-dot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--border-strong);
+  }
+  .reader-meta-source {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 22rem;
+  }
+  .reader-meta-byline {
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  .reader-meta-link {
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+  .reader-meta-link:hover {
+    color: var(--accent);
+  }
+
+  /* Hero cover, shown only when a post sets `cover:` in frontmatter. */
+  .reader-cover {
+    display: block;
+    width: 100%;
+    max-height: 22rem;
+    object-fit: cover;
+    border-radius: var(--radius-lg);
+    margin: 0 0 var(--space-6);
+    background: var(--surface-2);
+  }
+
+  /* Previous / next post navigation under a blog article. */
+  .reader-postnav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+    margin-top: calc(var(--space-8) * 1.5);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--border-subtle);
+  }
+  .reader-postnav-link {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-4);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out);
+  }
+  .reader-postnav-link:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-2);
+  }
+  .reader-postnav-newer {
+    text-align: right;
+    align-items: flex-end;
+  }
+  .reader-postnav-dir {
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+  }
+  .reader-postnav-title {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    font-weight: 600;
+    line-height: var(--leading-tight);
+    color: var(--text-primary);
+  }
+  .reader-postnav-link:hover .reader-postnav-title {
+    color: var(--accent);
+  }
+  @media (max-width: 36rem) {
+    .reader-postnav {
+      grid-template-columns: 1fr;
+    }
+    .reader-postnav-newer {
+      text-align: left;
+      align-items: flex-start;
+    }
+  }
+
+  /* A "section" page (any page with children) presents its children as a card
+     grid at the foot of the reader — decks, multi-part articles, doc folders
+     show as real cards (covers, deck play-badges) instead of a link list.
+     Mirrors .reader-postnav's divider; the grid matches the index's 2-up. */
+  .reader-childgallery {
+    margin-top: calc(var(--space-8) * 1.5);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--border-subtle);
+  }
+  .reader-childgallery-title {
+    margin: 0 0 var(--space-5);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+  .reader-childgallery-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-5);
+  }
+  @media (max-width: 36rem) {
+    .reader-childgallery-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Prose elevation. Override the .tela-milkdown editor scale for reading:
+     bigger optical size, generous leading, em-relative headings so one knob
+     (--reading-font-size) moves everything. */
+  .tela-reader .tela-milkdown,
+  .tela-reader .tela-milkdown [data-milkdown-root] {
+    min-height: 0;
+  }
+  .tela-reader .tela-milkdown .ProseMirror {
+    padding: 0;
+    font-family: var(--reading-font-family);
+    font-size: var(--reading-font-size);
+    line-height: var(--reading-leading);
+  }
+  .tela-reader .tela-milkdown .ProseMirror p {
+    font-size: 1em;
+    line-height: var(--reading-leading);
+    margin: 0 0 1.15em;
+  }
+  .tela-reader .tela-milkdown .ProseMirror h1,
+  .tela-reader .tela-milkdown .ProseMirror h2,
+  .tela-reader .tela-milkdown .ProseMirror h3,
+  .tela-reader .tela-milkdown .ProseMirror h4 {
+    font-family: var(--reading-font-family);
+    line-height: var(--reading-leading-tight);
+    letter-spacing: -0.01em;
+  }
+  .tela-reader .tela-milkdown .ProseMirror h1 {
+    font-size: 1.8em;
+    margin: 1.6em 0 0.5em;
+  }
+  .tela-reader .tela-milkdown .ProseMirror h2 {
+    font-size: 1.45em;
+    margin: 1.5em 0 0.5em;
+    padding-bottom: 0.2em;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .tela-reader .tela-milkdown .ProseMirror h3 {
+    font-size: 1.2em;
+    margin: 1.4em 0 0.4em;
+  }
+  .tela-reader .tela-milkdown .ProseMirror h4 {
+    font-size: 1.05em;
+    margin: 1.3em 0 0.4em;
+  }
+  .tela-reader .tela-milkdown .ProseMirror li {
+    line-height: var(--reading-leading);
+    margin: 0.3em 0;
+  }
+  .tela-reader .tela-milkdown .ProseMirror blockquote {
+    font-size: 1em;
+    margin: 0 0 1.15em;
+  }
+  /* Pull-quote scales with the reading size like the rest of the prose (the
+     editor's fixed --text-xl would ignore the S/M/L preference). */
+  .tela-reader .tela-milkdown .ProseMirror .tela-pullquote {
+    margin: 1.8em 0;
+  }
+  .tela-reader .tela-milkdown .ProseMirror .tela-pullquote-body {
+    font-size: 1.3em;
+    line-height: var(--reading-leading-tight);
+  }
+  /* Heading scroll target — clear the sticky top bar when jumped to from TOC. */
+  .tela-reader .reader-heading {
+    scroll-margin-top: calc(var(--space-8) + var(--space-4));
+    position: relative;
+  }
+
+  /* Hover copy-link affordance. Lives in the left gutter so it never reflows the
+     heading text; revealed on heading hover / keyboard focus. Clicking copies an
+     absolute deep-link (handled in ReaderShell) and flips to a "copied" tick. */
+  .tela-reader .reader-anchor {
+    position: absolute;
+    left: -1.05em;
+    top: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1.25em;
+    font-weight: 400;
+    text-decoration: none;
+    color: var(--text-muted);
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-out);
+    user-select: none;
+  }
+  .tela-reader .reader-heading:hover .reader-anchor,
+  .tela-reader .reader-anchor:focus-visible {
+    opacity: 0.55;
+  }
+  .tela-reader .reader-anchor:hover {
+    opacity: 1 !important;
+    color: var(--accent);
+  }
+  .tela-reader .reader-anchor[data-copied] {
+    opacity: 1 !important;
+    color: var(--success);
+  }
+  .tela-reader .reader-anchor[data-copied]::after {
+    content: 'Copied';
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 2px);
+    transform: translateX(-50%);
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--surface-3);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    line-height: 1.4;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  /* The anchor is a reading aid, not content — never print it. */
+  @media print {
+    .tela-reader .reader-anchor {
+      display: none !important;
+    }
+  }
+  @media (hover: none) {
+    /* Touch: no hover, so keep it faintly visible rather than unreachable. */
+    .tela-reader .reader-anchor {
+      opacity: 0.4;
+    }
+  }
+  @media (max-width: 40rem) {
+    /* …except on a phone, where there is no left gutter to hold it: the anchor
+       sits in the page margin against the screen edge and every heading reads
+       as "# Heading". Page-level "Copy link" covers the intent there. */
+    .tela-reader .reader-anchor {
+      display: none;
+    }
+  }
+
+  /* --- Long-form readability pass -------------------------------------------
+     Micro-typography that only matters at reading length: better wrapping
+     (balanced headings, no orphan tails on paragraphs), legibility hints,
+     calmer links, and quieter rules/lists/media. All scoped to .tela-reader so
+     the editor surface is untouched, and all token-driven. */
+  .tela-reader .tela-milkdown .ProseMirror {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'kern', 'liga', 'clig', 'calt';
+    /* Lets opening quotes / bullets hang into the margin for a clean left edge
+       (progressive — currently Safari; harmless elsewhere). */
+    hanging-punctuation: first allow-end last;
+  }
+  .tela-reader .reader-title,
+  .tela-reader .tela-milkdown .ProseMirror h1,
+  .tela-reader .tela-milkdown .ProseMirror h2,
+  .tela-reader .tela-milkdown .ProseMirror h3,
+  .tela-reader .tela-milkdown .ProseMirror h4 {
+    /* Even line lengths so a heading never drops one lonely word. */
+    text-wrap: balance;
+  }
+  .tela-reader .tela-milkdown .ProseMirror p,
+  .tela-reader .tela-milkdown .ProseMirror li {
+    /* Avoids short orphan last lines + typographic rivers in body copy. */
+    text-wrap: pretty;
+  }
+  /* The first block after a heading hugs it — no double gap between the
+     heading's bottom margin and the block's top margin. */
+  .tela-reader .tela-milkdown .ProseMirror :is(h1, h2, h3, h4) + * {
+    margin-top: 0;
+  }
+  /* Links read calmer in long-form: a thin, low-contrast underline that firms
+     up on hover, rather than the editor's solid accent rule. */
+  .tela-reader .tela-milkdown .ProseMirror a:not(.reader-footnote-back) {
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.16em;
+    text-decoration-color: color-mix(in srgb, var(--accent) 38%, transparent);
+  }
+  .tela-reader .tela-milkdown .ProseMirror a:not(.reader-footnote-back):hover {
+    text-decoration-color: var(--accent);
+  }
+  /* Inline code sits slightly smaller so it doesn't tower over the prose. */
+  .tela-reader .tela-milkdown .ProseMirror :not(pre) > code {
+    font-size: 0.88em;
+  }
+  /* Images / diagrams stay within the measure, centred, softly rounded. */
+  .tela-reader .tela-milkdown .ProseMirror img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+  }
+  /* A divider as a quiet centred mark, not a full-width bar. */
+  .tela-reader .tela-milkdown .ProseMirror hr {
+    border: 0;
+    border-top: 1px solid var(--border-subtle);
+    width: 38%;
+    margin: var(--space-8) auto;
+  }
+  /* Lists: comfortable hang + muted markers. */
+  .tela-reader .tela-milkdown .ProseMirror ul,
+  .tela-reader .tela-milkdown .ProseMirror ol {
+    padding-left: 1.4em;
+  }
+  .tela-reader .tela-milkdown .ProseMirror li::marker {
+    color: var(--text-muted);
+  }
+  /* Tables breathe a touch more. The scroll port that keeps a wide one from
+     spilling past the article column (and into the sticky TOC) is shared by
+     every read surface — see editor.css, `[data-tela-view] table`. */
+  .tela-reader .tela-milkdown .ProseMirror table {
+    font-size: 0.95em;
+  }
+
+  /* Footnotes (reader). Base marker/list styling is in editor.css; here we add
+     the "Footnotes" section break before the first definition, the scroll
+     offsets for jumps, and the back-link affordance. */
+  .tela-reader .reader-footnotes-start {
+    margin-top: var(--space-8);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--border-subtle);
+  }
+  .tela-reader .reader-footnotes-start::before {
+    content: 'Footnotes';
+    display: block;
+    grid-column: 1 / -1;
+    margin-bottom: var(--space-3);
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .tela-reader .reader-footnote-def,
+  .tela-reader sup[data-type='footnote_reference'] {
+    scroll-margin-top: calc(var(--space-8) + var(--space-4));
+  }
+  /* Briefly flag the jumped-to definition / reference so the eye lands on it.
+     Toggled by ReaderShell on click (not :target — the jump doesn't change the
+     URL hash). Fades via a short transition; reduced-motion shows it flat. */
+  .tela-reader .reader-footnote-def,
+  .tela-reader sup[data-type='footnote_reference'] {
+    transition: background-color var(--duration-base) var(--ease-out);
+  }
+  .tela-reader .reader-footnote-def.reader-fn-flash {
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 0 0 var(--space-2) var(--surface-2);
+  }
+  .tela-reader sup[data-type='footnote_reference'].reader-fn-flash {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    border-radius: var(--radius-xs);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tela-reader .reader-footnote-def,
+    .tela-reader sup[data-type='footnote_reference'] {
+      transition: none;
+    }
+  }
+  .tela-reader .reader-footnote-back {
+    margin-left: var(--space-2);
+    color: var(--accent);
+    text-decoration: none;
+    font-size: var(--text-sm);
+  }
+  .tela-reader .reader-footnote-back:hover {
+    color: var(--text-primary);
+  }
+  @media print {
+    .tela-reader .reader-footnote-back {
+      display: none !important;
+    }
+  }
+
+  /* Table of contents — sticky rail, hidden until there's room for it. */
+  .reader-toc {
+    display: none;
+  }
+  @media (min-width: 80rem) {
+    .reader-toc {
+      display: block;
+      /* Left gutter, hugging the article's left edge. */
+      grid-column: 1;
+      justify-self: end;
+      width: 100%;
+      max-width: 16rem;
+      position: sticky;
+      top: var(--space-8);
+      max-height: calc(100dvh - var(--space-8) * 2);
+      overflow-y: auto;
+      padding-right: var(--space-3);
+    }
+    /* With the space-nav rail on the left (public reader), the symmetric
+       1fr|measure|1fr grid leaves a dead left gutter and floats the article
+       right. Instead lay out [article | fixed TOC] and centre the PAIR with
+       justify-content. Sizing the TOC column at (rail width − gap) cancels the
+       rail's left offset, so the article lands centred in the viewport. */
+    .tela-reader[data-has-sidebar] .reader-grid {
+      grid-template-columns: minmax(0, var(--reading-measure)) 15rem;
+      justify-content: center;
+    }
+    .tela-reader[data-has-sidebar] .reader-article {
+      grid-column: 1;
+      /* Share row 1 with the TOC. The TOC (grid-column 2) precedes the article in
+         source order, so default sparse auto-placement bumps the article — which
+         wants the earlier column 1 — down to row 2, leaving a gap the height of the
+         TOC above the title. Pinning both to row 1 keeps them side by side. */
+      grid-row: 1;
+    }
+    .tela-reader[data-has-sidebar] .reader-toc {
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: stretch;
+      max-width: none;
+      padding-right: 0;
+      padding-left: var(--space-3);
+    }
+  }
+  .reader-toc-label {
+    margin: 0 0 var(--space-3);
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .reader-toc-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    border-left: 1px solid var(--border-subtle);
+  }
+  .reader-toc-link {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    margin-left: -1px;
+    padding: var(--space-1) var(--space-3);
+    border-left: 2px solid transparent;
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition:
+      color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out);
+  }
+  .reader-toc-link[data-level='3'] {
+    padding-left: var(--space-6);
+    font-size: var(--text-xs);
+  }
+  .reader-toc-link:hover {
+    color: var(--text-primary);
+  }
+  .reader-toc-link[data-active='true'] {
+    color: var(--text-primary);
+    border-left-color: var(--accent);
+  }
+
+  /* Public space nav — the structural left rail in the public reader (blog/wiki
+     nav). Bounded width so a long page title can't balloon the rail and box the
+     article in; titles truncate within it. Hierarchy is shown with indentation
+     and a guide line per nesting level. Hidden on narrow viewports (article goes
+     full-width) — there's no mobile drawer yet. */
+  .reader-spacenav {
+    display: none;
+  }
+  @media (min-width: 64rem) {
+    .reader-spacenav {
+      display: block;
+      flex-shrink: 0;
+      width: 17rem;
+      align-self: stretch;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: var(--space-7) var(--space-3) var(--space-8);
+      border-right: 1px solid var(--border-subtle);
+    }
+  }
+  .reader-spacenav-title {
+    margin: 0 0 var(--space-3);
+    padding: 0 var(--space-2);
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .reader-spacenav-list,
+  .reader-spacenav-sublist {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  /* Nested levels: indent + a hairline guide so a child reads as "inside" its
+     parent rather than a sibling. */
+  .reader-spacenav-sublist {
+    margin-left: var(--space-3);
+    border-left: 1px solid var(--border-subtle);
+  }
+  .reader-spacenav-link {
+    display: block;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-xs);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+    color: var(--text-muted);
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition:
+      color var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out);
+  }
+  /* Top-level entries read a touch stronger than nested ones. */
+  .reader-spacenav-list > li > .reader-spacenav-link {
+    color: var(--text-primary);
+  }
+  .reader-spacenav-link:hover {
+    color: var(--text-primary);
+    background: var(--surface-2);
+  }
+  .reader-spacenav-link[data-active='true'] {
+    color: var(--text-primary);
+    font-weight: 500;
+    background: var(--surface-2);
+  }
+
+  /* Reader-preferences popover body (rendered inside the owned DropdownMenu).
+     Groups of ToggleGroups, each with a small label. */
+  .reader-prefs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-2);
+    min-width: 14rem;
+  }
+  .reader-prefs-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .reader-prefs-label {
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* Respect reduced motion — disable the smooth-scroll the TOC requests and
+     the progress transform transition (transform itself is fine instantly). */
+  @media (prefers-reduced-motion: reduce) {
+    .reader-scroll {
+      scroll-behavior: auto;
+    }
+  }
+
+  /* Print — used by the browser's Save-as-PDF AND by gotenberg's server-side
+     PDF export (#3), which renders this very reader with emulatedMediaType=print.
+     Strip all chrome, force a light palette so a dark-theme reader prints clean,
+     pin a consistent document body size, keep a comfortable centered measure
+     (never full page width), and avoid fracturing atomic blocks across pages. */
+  @media print {
+    .reader-progress,
+    .reader-topbar,
+    .reader-toc {
+      display: none !important;
+    }
+    /* Only the article column prints — hide the share subtree rail. */
+    .reader-body > :not(.reader-scroll) {
+      display: none !important;
+    }
+    .tela-reader {
+      height: auto;
+      /* Consistent document body size regardless of the on-screen size pref. */
+      --reading-font-size: 11pt;
+    }
+    /* Default (browser Save-as-PDF, or an export with no ?theme=): force a clean
+       light palette regardless of the active on-screen theme. */
+    html:not([data-pdf-themed]) {
+      background: #ffffff;
+    }
+    html:not([data-pdf-themed]) .tela-reader {
+      color-scheme: light;
+      --surface-1: #ffffff;
+      --surface-2: #f7f7f8;
+      --text-primary: #16161a;
+      --text-muted: #5b5b66;
+      --border-subtle: #e4e4e9;
+      --border-strong: #c8c8d0;
+    }
+    /* #3 — an explicitly-themed PDF (?theme=dark|warm|light sets data-pdf-themed)
+       keeps the chosen palette; paint the page canvas to match so the whole sheet
+       reads as one surface (printBackground is on in the gotenberg request). */
+    html[data-pdf-themed] {
+      background: var(--surface-1);
+    }
+    .reader-body {
+      display: block;
+    }
+    .reader-scroll {
+      overflow: visible;
+    }
+    .reader-grid {
+      display: block;
+      max-width: none;
+      padding: 0;
+    }
+    /* Keep the ~76-char measure, centred — never the full page width. */
+    .reader-article {
+      max-width: var(--reading-measure);
+      margin: 0 auto;
+    }
+    /* Don't strand a heading at the foot of a page or split atomic blocks. */
+    .reader-article h1,
+    .reader-article h2,
+    .reader-article h3,
+    .reader-article h4 {
+      break-after: avoid;
+    }
+    .tela-reader .tela-milkdown .ProseMirror pre,
+    .tela-reader .tela-milkdown .ProseMirror table,
+    .tela-reader .tela-milkdown .ProseMirror blockquote,
+    .tela-reader .tela-milkdown .ProseMirror img,
+    .tela-reader .tela-callout,
+    .tela-reader .tela-excalidraw {
+      break-inside: avoid;
+    }
+    .tela-reader .tela-milkdown .ProseMirror p {
+      orphans: 3;
+      widows: 3;
+    }
+    /* The horizontal scroll port is a screen affordance; on paper let the table
+       reflow to the page width instead of clipping the overflowing columns.
+       Matches the attribute the port is defined on (editor.css) so it wins on
+       specificity rather than on which file happens to be imported last. */
+    .tela-reader .tela-milkdown .ProseMirror[data-tela-view] table {
+      display: table;
+      overflow: visible;
+    }
+    /* Interactive chrome is meaningless on paper. */
+    .tela-reader .tela-codeblock-copy,
+    .tela-reader .tela-table-filter {
+      display: none !important;
+    }
+  }
+}

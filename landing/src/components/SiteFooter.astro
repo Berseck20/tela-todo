@@ -1,0 +1,86 @@
+---
+const year = 2026;
+---
+<footer class="site-footer">
+  <div class="inner">
+    <div class="brand-col">
+      <span class="brand">
+        <svg viewBox="0 0 512 512" width="18" height="18" fill="none" aria-hidden="true">
+          <rect width="512" height="512" rx="112" fill="var(--cta-bg)" />
+          <g transform="translate(-2.5,-38.5)">
+            <path fill="var(--brand-fg)" d="M150 240 L196 188 Q205 178 218 178 H356 Q378 178 366 200 L332 240 Q325 250 312 250 H162 Q140 250 150 240 Z" />
+            <path fill="var(--brand-fg)" d="M238 250 H296 Q300 250 300 268 V396 Q300 414 281 410 L245 402 Q226 398 226 380 V272 Q226 252 238 250 Z" />
+            <path fill="#1e1b4b" fill-opacity="0.4" d="M250 250 H312 Q325 250 332 240 L304 270 Q297 278 297 290 V324 Z" />
+          </g>
+        </svg>
+        tela
+      </span>
+      <p class="tag">tela — the agent-native team wiki your AI reasons over.</p>
+    </div>
+    <nav class="links" aria-label="Footer">
+      <a href="https://github.com/zcag/tela" target="_blank" rel="noopener"
+         data-umami-event="outbound-link" data-umami-event-destination="github" data-umami-event-location="footer">GitHub</a>
+      <a href="/mcp/" data-umami-event="footer-link" data-umami-event-label="mcp">MCP / connector</a>
+      <a href="/compare/" data-umami-event="footer-link" data-umami-event-label="compare">Compare</a>
+      <a href="/blog" data-umami-event="footer-link" data-umami-event-label="blog">Blog</a>
+      <a href="https://github.com/zcag/tela#readme" target="_blank" rel="noopener"
+         data-umami-event="outbound-link" data-umami-event-destination="docs" data-umami-event-location="footer">Docs</a>
+      <a href="https://telawiki.com/public/spaces/16/pages/325/tela-team-onboarding" target="_blank" rel="noopener"
+         data-umami-event="footer-link" data-umami-event-label="onboarding-tour">Onboarding tour</a>
+      <a href="https://telawiki.com" target="_blank" rel="noopener"
+         data-umami-event="footer-link" data-umami-event-label="live-instance">Live instance</a>
+      <a href="/support/">Support</a>
+      <a href="/privacy/">Privacy</a>
+      <a href="/terms/">Terms</a>
+      <a href="https://github.com/zcag/tela/blob/main/LICENSE" target="_blank" rel="noopener"
+         data-umami-event="footer-link" data-umami-event-label="license">License</a>
+    </nav>
+  </div>
+  <div class="base">
+    <span>© {year} tela — hosted, or run it yourself.</span>
+    <span class="ms">tela — Latin for the woven cloth. A grid you build on.</span>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--border);
+    background: var(--surface-sunk);
+  }
+  .inner {
+    max-width: var(--col-max);
+    margin-inline: auto;
+    padding: 3rem var(--space-gutter) 2rem;
+    display: grid;
+    gap: 2rem;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--fg);
+  }
+  .tag { margin-top: 0.7rem; max-width: 30rem; color: var(--fg-faint); font-size: var(--text-sm); }
+  .links { display: flex; flex-wrap: wrap; gap: 1.25rem; }
+  .links a { color: var(--fg-soft); font-size: var(--text-sm); }
+  .links a:hover { color: var(--fg); }
+  .base {
+    max-width: var(--col-max);
+    margin-inline: auto;
+    padding: 1.1rem var(--space-gutter);
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem;
+    color: var(--fg-faint);
+    font-size: var(--text-xs);
+  }
+  .ms { font-family: var(--font-mono); }
+  @media (min-width: 760px) {
+    .inner { grid-template-columns: 1.3fr 1fr; align-items: start; }
+  }
+</style>

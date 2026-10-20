@@ -1,0 +1,53 @@
+{
+  "name": "tela-mcp",
+  "mcpName": "io.github.zcag/tela",
+  "version": "0.7.4",
+  "description": "MCP server for Tela — a self-hostable, markdown-native team wiki. Lets Claude, Cursor, and other agents search, read, and write your wiki pages. A stdio↔HTTP proxy to a Tela instance's built-in MCP server ({TELA_BASE_URL}/api/mcp) for hosts that can't speak HTTP transport directly.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "wiki",
+    "knowledge-base",
+    "markdown",
+    "documentation",
+    "ai-agents",
+    "claude",
+    "cursor",
+    "self-hosted",
+    "tela"
+  ],
+  "homepage": "https://telawiki.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zcag/tela.git",
+    "directory": "mcp"
+  },
+  "bugs": {
+    "email": "tela@telawiki.com"
+  },
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "bin": {
+    "tela-mcp": "dist/server.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "prepare": "npm run build",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}

@@ -1,0 +1,379 @@
+---
+import Prose from '../layouts/Prose.astro';
+
+// Tool roster mirrors backend/internal/api/mcp_tools.go (43 tools). Keep in sync
+// when the tool surface changes. Note: the meaning/answer tool is `research`
+// (semantic, cited) and `search` is keyword full-text — there is no
+// `semantic_search`/`search_bodies` tool.
+const readTools = [
+  ['list_spaces', 'List the spaces you can access.'],
+  ['get_space', 'Read a space and its metadata.'],
+  ['list_pages', 'List pages in a space, as a tree.'],
+  ['get_page', 'Read a page (canonical markdown).'],
+  ['list_backlinks', 'Pages that link to a given page.'],
+  ['list_page_revisions', 'A page\'s revision history, trashed pages included.'],
+  ['get_page_revision', 'Read one past revision of a page.'],
+  ['read_chunk', 'Read a specific section of a page.'],
+  ['search', 'Keyword full-text search across pages (no embedder needed).'],
+  ['research', 'Semantic, answer-oriented retrieval with cited sources.'],
+  ['fetch', 'Fetch a page\'s full text by id; companion to search.'],
+  ['import_guide', 'The guide for bulk-importing a folder of documents into a space.'],
+];
+const writeTools = [
+  ['create_space', 'Create a new space.'],
+  ['update_space', 'Rename or edit a space.'],
+  ['delete_space', 'Delete a space.'],
+  ['create_page', 'Create a page from markdown.'],
+  ['update_page', 'Edit a page body or title.'],
+  ['patch_page', 'Apply a section-scoped edit to a page.'],
+  ['move_page', 'Re-parent or reorder a page.'],
+  ['delete_page', 'Delete a page.'],
+  ['add_comment', 'Comment on a page.'],
+  ['invite_to_space', 'Give someone access to a space by email — grants it if they have an account, otherwise sends an invitation.'],
+  ['submit_feedback', 'Send feedback to the maintainers.'],
+];
+const knowledgeTools = [
+  ['related_pages', 'Pages semantically related to one (see-also).'],
+  ['suggest_links', 'Suggest links from draft text to existing pages.'],
+  ['find_overlaps', 'Find pages with overlapping or duplicate content.'],
+  ['knowledge_gaps', 'Top questions the docs couldn’t answer (admin).'],
+];
+const atlasTools = [
+  ['atlas_list_projects', 'List Atlas projects you can manage or view.'],
+  ['atlas_run', 'Trigger an Atlas run — generate or refresh a source.'],
+  ['atlas_run_status', 'Check a run — stage, status, and coverage.'],
+];
+const sheetTools = [
+  ['edit_sheet', 'Edit a spreadsheet — set cells, add rows, apply formulas.'],
+  ['sheet_authoring_guide', 'The guide for authoring tela spreadsheets — the table format, formulas, and styling.'],
+];
+const deckTools = [
+  ['preview_deck', 'Render a deck to preview its slides.'],
+  ['lint_deck', 'Check deck markdown before presenting.'],
+  ['deck_authoring_guide', 'The guide for authoring tela decks.'],
+  ['generate_deck_image', 'Generate an image for a slide.'],
+  ['treat_deck_image', 'Process and optimize a slide image.'],
+];
+const attachmentTools = [
+  ['list_attachments', "List a page's attachments."],
+  ['request_attachment_upload', 'Start an upload and get an upload URL.'],
+  ['confirm_attachment_upload', 'Finalize an attachment upload.'],
+  ['upload_attachment', 'Upload a file attachment to a page.'],
+  ['delete_attachment', 'Remove an attachment.'],
+];
+const shareTools = [
+  ['share_page', 'Create a public share link for a page.'],
+  ['revoke_share', 'Revoke a page’s share link.'],
+  ['list_shares', 'List active share links.'],
+];
+---
+
+<Prose
+  title="tela MCP server — docs"
+  description="Connect Claude, ChatGPT or any MCP client to tela: a markdown wiki your agents can read, search and write over HTTP with OAuth."
+  kicker="Documentation"
+  heading="The tela MCP server"
+  updated="June 27, 2026"
+  ogImagePath="/og-mcp.png"
+>
+  <script type="application/ld+json" is:inline slot="head" set:html={JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'TechArticle',
+        '@id': 'https://telawiki.com/mcp/#article',
+        headline: 'The tela MCP server',
+        description: 'Connect Claude, ChatGPT or any MCP client to tela: a markdown wiki your agents can read, search and write over HTTP with OAuth.',
+        url: 'https://telawiki.com/mcp/',
+        inLanguage: 'en',
+        dateModified: '2026-06-27',
+        author: { '@id': 'https://telawiki.com/#org' },
+        publisher: { '@id': 'https://telawiki.com/#org' },
+        about: { '@id': 'https://telawiki.com/#software' },
+        isPartOf: { '@id': 'https://telawiki.com/#website' },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://telawiki.com/' },
+          { '@type': 'ListItem', position: 2, name: 'MCP server', item: 'https://telawiki.com/mcp/' },
+        ],
+      },
+    ],
+  })} />
+
+  <p class="lead">
+    tela ships a built-in <a href="https://modelcontextprotocol.io">Model Context
+    Protocol</a> server, so AI agents are first-class users of your wiki — they
+    read, search, and write the same markdown your team does. This page is the
+    public reference for connecting to it.
+  </p>
+
+  <h2>Endpoint</h2>
+  <dl>
+    <dt>URL</dt>
+    <dd><code>https://telawiki.com/api/mcp</code></dd>
+    <dt>Transport</dt>
+    <dd>Streamable HTTP (the current MCP transport; SSE is not used).</dd>
+    <dt>Auth</dt>
+    <dd>OAuth 2.1 with PKCE (via WorkOS AuthKit), or a Personal Access Token as a bearer header.</dd>
+  </dl>
+
+  <h2>Connecting</h2>
+
+  <h3>Claude</h3>
+  <p>
+    In Claude, add tela as a custom connector and point it at the endpoint URL
+    above. Claude runs the OAuth flow — you sign in to tela and consent, and the
+    tools become available in chat. No manual token handling.
+  </p>
+
+  <h3>ChatGPT</h3>
+  <p>
+    tela is listed in ChatGPT's plugin directory — open
+    <a href="https://chatgpt.com/plugins/plugin_asdk_app_6a22ce5f60dc8191a56bf3f66890b1cf"
+       target="_blank" rel="noopener">Tela</a>
+    and click <strong>Install plugin</strong>, then sign in with your tela
+    account. Nothing to paste, and no Developer Mode. tela also exposes the
+    <code>search</code> + <code>fetch</code> pair used by Deep Research.
+  </p>
+  <p>
+    The directory plugin connects to the hosted service. To point ChatGPT at a
+    <strong>self-hosted</strong> instance, add a custom connector in ChatGPT's
+    Developer Mode settings with your own <code>/api/mcp</code> URL and complete
+    the OAuth sign-in.
+  </p>
+
+  <h3>Any MCP client (npm proxy)</h3>
+  <p>
+    For stdio-based hosts, the published <code>tela-mcp</code> package is a thin
+    proxy that forwards stdio to the HTTP endpoint with your token:
+  </p>
+  <pre tabindex="0" aria-label="tela-mcp client configuration"><code>{`{
+  "mcpServers": {
+    "tela": {
+      "command": "npx",
+      "args": ["-y", "tela-mcp"],
+      "env": {
+        "TELA_BASE_URL": "https://telawiki.com",
+        "TELA_API_KEY": "<your personal access token>"
+      }
+    }
+  }
+}`}</code></pre>
+  <p>
+    Modern hosts that speak Streamable HTTP can skip the proxy and connect to
+    <code>/api/mcp</code> directly.
+  </p>
+
+  <h2>Install</h2>
+
+  <h3>One-click</h3>
+  <p>
+    Add the HTTP endpoint to an editor in one click — OAuth handles sign-in on
+    first use, so no token goes in the link:
+  </p>
+  <div class="install-buttons" role="group" aria-label="One-click MCP install">
+    <a
+      class="install-btn"
+      href="cursor://anysphere.cursor-deeplink/mcp/install?name=tela&config=eyJ1cmwiOiJodHRwczovL3RlbGF3aWtpLmNvbS9hcGkvbWNwIn0="
+      >Add to Cursor</a
+    >
+    <a
+      class="install-btn"
+      href="https://insiders.vscode.dev/redirect/mcp/install?name=tela&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Ftelawiki.com%2Fapi%2Fmcp%22%7D"
+      >Add to VS Code</a
+    >
+  </div>
+
+  <h3>Per-client setup</h3>
+  <p>
+    HTTP-transport hosts connect to the endpoint directly and sign in via OAuth;
+    stdio-only hosts use the <code>tela-mcp</code> proxy with a PAT
+    (<code>TELA_BASE_URL</code> + <code>TELA_API_KEY</code>).
+  </p>
+
+  <h4>Claude Code (CLI, HTTP)</h4>
+  <pre tabindex="0" aria-label="Claude Code install command"><code>{`claude mcp add --transport http tela https://telawiki.com/api/mcp`}</code></pre>
+
+  <h4>Cursor (HTTP)</h4>
+  <p>Use the button above, or add to <code>~/.cursor/mcp.json</code>:</p>
+  <pre tabindex="0" aria-label="Cursor configuration"><code>{`{ "mcpServers": { "tela": { "url": "https://telawiki.com/api/mcp" } } }`}</code></pre>
+
+  <h4>VS Code (HTTP)</h4>
+  <p>Use the button above, or from the command line:</p>
+  <pre tabindex="0" aria-label="VS Code install command"><code>{`code --add-mcp '{"name":"tela","type":"http","url":"https://telawiki.com/api/mcp"}'`}</code></pre>
+
+  <h4>ChatGPT (plugin directory)</h4>
+  <p>
+    Install
+    <a href="https://chatgpt.com/plugins/plugin_asdk_app_6a22ce5f60dc8191a56bf3f66890b1cf"
+       target="_blank" rel="noopener">Tela</a>
+    from the directory and sign in — no URL to paste.
+  </p>
+
+  <h4>Claude.ai / self-hosted ChatGPT (OAuth connector)</h4>
+  <p>Add a custom connector, paste the URL, and complete the sign-in:</p>
+  <pre tabindex="0" aria-label="OAuth connector URL"><code>{`https://telawiki.com/api/mcp`}</code></pre>
+
+  <h4>Claude Desktop (stdio proxy)</h4>
+  <p>In <code>claude_desktop_config.json</code>:</p>
+  <pre tabindex="0" aria-label="Claude Desktop configuration"><code>{`{
+  "mcpServers": {
+    "tela": {
+      "command": "npx",
+      "args": ["-y", "tela-mcp"],
+      "env": {
+        "TELA_BASE_URL": "https://telawiki.com",
+        "TELA_API_KEY": "<your personal access token>"
+      }
+    }
+  }
+}`}</code></pre>
+
+  <h4>Windsurf (stdio proxy)</h4>
+  <p>
+    In <code>~/.codeium/windsurf/mcp_config.json</code>, using the same
+    <code>mcpServers</code> shape as Claude Desktop above.
+  </p>
+
+  <h4>Codex (stdio proxy)</h4>
+  <p>In <code>~/.codex/config.toml</code>:</p>
+  <pre tabindex="0" aria-label="Codex configuration"><code>{`[mcp_servers.tela]
+command = "npx"
+args = ["-y", "tela-mcp"]
+env = { TELA_BASE_URL = "https://telawiki.com", TELA_API_KEY = "<your personal access token>" }`}</code></pre>
+
+  <p>
+    A machine-discovery manifest is published at
+    <a href="/.well-known/mcp.json"><code>/.well-known/mcp.json</code></a>.
+  </p>
+
+  <h2>Tools</h2>
+  <p>
+    Thirty-nine tools, grouped by what they touch, with read and write cleanly
+    separated. Every tool carries a human-readable title and read/write
+    annotations; writes are scoped by your token's permissions. The knowledge
+    tools help an agent keep the wiki connected — surfacing related pages,
+    suggesting links, and flagging overlap — and the Atlas tools let an agent
+    kick off and check a documentation run.
+  </p>
+
+  <h3>Read</h3>
+  <ul class="tool-grid">
+    {readTools.map(([name, desc]) => (
+      <li><code>{name}</code><span class="desc">{desc}</span></li>
+    ))}
+  </ul>
+
+  <h3>Write</h3>
+  <ul class="tool-grid">
+    {writeTools.map(([name, desc]) => (
+      <li><code>{name}</code><span class="desc">{desc}</span></li>
+    ))}
+  </ul>
+
+  <h3>Knowledge</h3>
+  <ul class="tool-grid">
+    {knowledgeTools.map(([name, desc]) => (
+      <li><code>{name}</code><span class="desc">{desc}</span></li>
+    ))}
+  </ul>
+
+  <h3>Atlas</h3>
+  <ul class="tool-grid">
+    {atlasTools.map(([name, desc]) => (
+      <li><code>{name}</code><span class="desc">{desc}</span></li>
+    ))}
+  </ul>
+
+  <h3>Sheets</h3>
+  <ul class="tool-grid">
+    {sheetTools.map(([name, desc]) => (
+      <li><code>{name}</code><span class="desc">{desc}</span></li>
+    ))}
+  </ul>
+
+  <h3>Decks</h3>
+  <ul class="tool-grid">
+    {deckTools.map(([name, desc]) => (
+      <li><code>{name}</code><span class="desc">{desc}</span></li>
+    ))}
+  </ul>
+
+  <h3>Attachments</h3>
+  <ul class="tool-grid">
+    {attachmentTools.map(([name, desc]) => (
+      <li><code>{name}</code><span class="desc">{desc}</span></li>
+    ))}
+  </ul>
+
+  <h3>Sharing</h3>
+  <ul class="tool-grid">
+    {shareTools.map(([name, desc]) => (
+      <li><code>{name}</code><span class="desc">{desc}</span></li>
+    ))}
+  </ul>
+
+  <h2>Resources</h2>
+  <p>tela exposes pages and spaces as MCP resource templates, so agents can reference them by URI:</p>
+  <ul>
+    <li><code>tela://page/&#123;id&#125;</code> — a page by id.</li>
+    <li><code>tela://space/&#123;id&#125;</code> — a space by id.</li>
+  </ul>
+
+  <h2>Interactive widgets</h2>
+  <p>
+    On hosts that support MCP Apps / interactive UI, tela returns two embedded
+    widgets — a <strong>page reader</strong> and <strong>search-results
+    cards</strong> — so results render as interactive components instead of raw
+    text.
+  </p>
+
+  <h2>Permissions &amp; safety</h2>
+  <ul>
+    <li>Agent tool calls run with your account's permissions — an agent can only touch what you can.</li>
+    <li>Write tools are gated separately from read tools; read-only connections never mutate content.</li>
+    <li>Page bodies are canonical markdown — what an agent writes is exactly what your team sees.</li>
+    <li>See the <a href="/privacy/">privacy policy</a> for what is collected and shared.</li>
+  </ul>
+
+  <h2>Limitations</h2>
+  <ul>
+    <li><strong>Semantic retrieval needs an embedder.</strong> <code>research</code> (and the semantic side of retrieval) returns <code>503</code> if the instance has no embedding model configured. Keyword <code>search</code> always works.</li>
+    <li><strong>Large pages are capped.</strong> <code>get_page</code> and <code>fetch</code> truncate bodies beyond ~80k characters and set <code>truncated: true</code>; read specific sections with <code>research</code> + <code>read_chunk</code>.</li>
+    <li><strong>Writes need editor permission.</strong> Create/update/delete tools require editor access on the target space; a read-scoped token or a viewer account can't write.</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+  <dl>
+    <dt>Connect fails / "couldn't register"</dt>
+    <dd>The host couldn't complete OAuth. Re-add the connector with the exact URL <code>https://telawiki.com/api/mcp</code>, then sign in and consent when the tela login screen appears.</dd>
+    <dt>401 / tools don't appear</dt>
+    <dd>The token is missing or invalid. For the OAuth flow, reconnect; for the npm proxy, check <code>TELA_API_KEY</code> is a current Personal Access Token.</dd>
+    <dt>Tool returns <code>503 rag_disabled</code></dt>
+    <dd>Semantic retrieval isn't configured on this instance — use keyword <code>search</code> instead.</dd>
+    <dt>A page comes back truncated</dt>
+    <dd>Expected for very large pages (<code>truncated: true</code>). Use <code>research</code> to find the relevant section, then <code>read_chunk</code>.</dd>
+    <dt>Write tool returns a permission error</dt>
+    <dd>Your account or token lacks editor access to that space.</dd>
+  </dl>
+  <p>Still stuck? Email <a href="mailto:tela@telawiki.com">tela@telawiki.com</a> — the source is on <a href="https://github.com/zcag/tela">GitHub</a>.</p>
+
+  <h2>Source, support &amp; security</h2>
+  <p>
+    tela is open-source at
+    <a href="https://github.com/zcag/tela">github.com/zcag/tela</a>; the MCP
+    proxy is <a href="https://www.npmjs.com/package/tela-mcp">tela-mcp</a> on
+    npm. Questions and support: <a href="mailto:tela@telawiki.com">tela@telawiki.com</a>.
+    Report security vulnerabilities privately to
+    <a href="mailto:tela@telawiki.com">tela@telawiki.com</a> — please don't open a
+    public issue for security reports.
+  </p>
+
+  <h2>See also</h2>
+  <p>
+    New to tela? See <a href="/">how tela works</a>, or
+    <a href="/compare/">compare tela with Notion, Confluence, Docmost and other wikis</a>.
+  </p>
+</Prose>

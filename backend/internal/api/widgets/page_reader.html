@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tela page</title>
+<style>
+  :root {
+    --fg: #1a1a1a; --muted: #6b7280; --bg: #ffffff; --border: #e5e7eb;
+    --accent: #4f46e5; --code-bg: #f3f4f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e5e7eb; --muted: #9ca3af; --bg: #111317; --border: #2a2f3a;
+            --accent: #818cf8; --code-bg: #1c2027; }
+  }
+  html[data-theme="dark"] {
+    --fg: #e5e7eb; --muted: #9ca3af; --bg: #111317; --border: #2a2f3a;
+    --accent: #818cf8; --code-bg: #1c2027;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: var(--fg); background: var(--bg);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .card { padding: 18px 20px; max-width: 760px; }
+  .head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+          border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 14px; }
+  h1.title { font-size: 20px; font-weight: 650; margin: 0; line-height: 1.3; }
+  a.open { color: var(--accent); text-decoration: none; font-size: 13px; white-space: nowrap; }
+  a.open:hover { text-decoration: underline; }
+  .body { word-wrap: break-word; }
+  .body h1 { font-size: 19px; } .body h2 { font-size: 17px; } .body h3 { font-size: 15px; }
+  .body h1, .body h2, .body h3, .body h4 { font-weight: 650; margin: 18px 0 8px; line-height: 1.3; }
+  .body p { margin: 10px 0; } .body ul, .body ol { margin: 10px 0; padding-left: 22px; }
+  .body li { margin: 3px 0; }
+  .body a { color: var(--accent); }
+  .body code { background: var(--code-bg); border-radius: 4px; padding: 1px 5px; font-size: 90%;
+               font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .body pre { background: var(--code-bg); border-radius: 8px; padding: 12px 14px; overflow-x: auto; }
+  .body pre code { background: none; padding: 0; }
+  .body blockquote { margin: 10px 0; padding: 2px 14px; border-left: 3px solid var(--border); color: var(--muted); }
+  .body hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+  .empty { color: var(--muted); font-style: italic; }
+  .tela-by { display: flex; align-items: center; gap: 6px; margin-top: 16px;
+             padding-top: 10px; border-top: 1px solid var(--border);
+             color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: -0.01em; }
+  .tela-by svg { width: 15px; height: 15px; border-radius: 4px; display: block; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="head">
+      <h1 class="title" id="title"></h1>
+      <a class="open" id="open" rel="noopener" style="display:none">Open in tela →</a>
+    </div>
+    <div class="body" id="body"></div>
+    <div class="tela-by" aria-label="tela">
+      <svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect width="512" height="512" rx="112" fill="#4f46e5"/>
+        <g transform="translate(-2.5,-38.5)">
+          <path fill="#ffffff" d="M150 240 L196 188 Q205 178 218 178 H356 Q378 178 366 200 L332 240 Q325 250 312 250 H162 Q140 250 150 240 Z"/>
+          <path fill="#ffffff" d="M238 250 H296 Q300 250 300 268 V396 Q300 414 281 410 L245 402 Q226 398 226 380 V272 Q226 252 238 250 Z"/>
+          <path fill="#1e1b4b" fill-opacity="0.4" d="M250 250 H312 Q325 250 332 240 L304 270 Q297 278 297 290 V324 Z"/>
+        </g>
+      </svg>
+      tela
+    </div>
+  </div>
+
+<!--TELA_BRIDGE-->
+<script>
+  // ---- safe minimal markdown renderer ------------------------------------
+  // Escape ALL html first, then apply a known-safe subset. Because we only ever
+  // inject tags we generate (never raw user html), this is XSS-safe even though
+  // the body is sandboxed user content.
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  function inline(s) {
+    // s is already html-escaped.
+    s = s.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
+    s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+    // [text](url) — only http(s)/relative; reject javascript: etc.
+    s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, t, u) =>
+      /^(https?:\/\/|\/|tela:\/\/)/i.test(u) ? `<a href="${u}" rel="noopener">${t}</a>` : m);
+    return s;
+  }
+
+  function renderMarkdown(md) {
+    if (!md || !md.trim()) return '<p class="empty">This page is empty.</p>';
+    const lines = esc(md).split(/\r?\n/);
+    let out = "", i = 0, para = [];
+    const flush = () => { if (para.length) { out += `<p>${inline(para.join(" "))}</p>`; para = []; } };
+    while (i < lines.length) {
+      const ln = lines[i];
+      let m;
+      if (/^```/.test(ln)) {                                   // fenced code
+        flush(); i++; let code = [];
+        while (i < lines.length && !/^```/.test(lines[i])) { code.push(lines[i]); i++; }
+        i++; out += `<pre><code>${code.join("\n")}</code></pre>`; continue;
+      }
+      if ((m = ln.match(/^(#{1,4})\s+(.*)$/))) {               // heading
+        flush(); out += `<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`; i++; continue;
+      }
+      if (/^\s*([-*])\s+/.test(ln)) {                          // ul
+        flush(); out += "<ul>";
+        while (i < lines.length && /^\s*([-*])\s+/.test(lines[i])) {
+          out += `<li>${inline(lines[i].replace(/^\s*[-*]\s+/, ""))}</li>`; i++;
+        }
+        out += "</ul>"; continue;
+      }
+      if (/^\s*\d+\.\s+/.test(ln)) {                           // ol
+        flush(); out += "<ol>";
+        while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
+          out += `<li>${inline(lines[i].replace(/^\s*\d+\.\s+/, ""))}</li>`; i++;
+        }
+        out += "</ol>"; continue;
+      }
+      if (/^\s*&gt;\s?/.test(ln)) {                            // blockquote (lines are pre-escaped, so > is &gt;)
+        flush(); out += `<blockquote>${inline(ln.replace(/^\s*&gt;\s?/, ""))}</blockquote>`; i++; continue;
+      }
+      if (/^\s*([-*_]\s*){3,}$/.test(ln)) { flush(); out += "<hr>"; i++; continue; } // hr
+      if (ln.trim() === "") { flush(); i++; continue; }        // blank
+      para.push(ln); i++;
+    }
+    flush();
+    return out;
+  }
+
+  // ---- render + host bridge ----------------------------------------------
+  // window.__telaWidget (injected bridge.js) abstracts ChatGPT + MCP Apps and
+  // replays the latest tool output, so registering onData here is race-safe.
+  let openHref = null;
+  function render(data) {
+    // get_page returns structuredContent shaped { page: { title, body, url, … } };
+    // tolerate a flat shape too.
+    const p = (data && data.page) ? data.page : (data || {});
+    document.getElementById("title").textContent = p.title || "Untitled";
+    document.getElementById("body").innerHTML = renderMarkdown(p.body_markdown || p.body || "");
+    const url = p.url || "";
+    const a = document.getElementById("open");
+    if (/^https?:\/\//i.test(url)) { openHref = url; a.href = url; a.style.display = ""; }
+    else { a.style.display = "none"; openHref = null; }
+  }
+
+  document.getElementById("open").addEventListener("click", (e) => {
+    if (openHref) { e.preventDefault(); window.__telaWidget.openLink(openHref); }
+  });
+  window.__telaWidget.onData(render);
+</script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+@layer tokens {
+  [data-theme='warm'] {
+    --surface-1: #fbf6ec;
+    --surface-2: #f4ecdc;
+    --surface-3: #ead9be;
+    --text-primary: #3a2a1a;
+    --text-muted: #7a6a55;
+    --text-inverse: #fbf6ec;
+    --border-subtle: #e0cdab;
+    --border-strong: #c4ad84;
+    --accent: #b4543a;
+    --accent-fg: #fbf6ec;
+    --danger: #a83232;
+    --warning: #b8761e;
+    --success: #5d7a3a;
+
+    --syntax-comment: #8b7a5f;
+    --syntax-keyword: #7a4b8c;
+    --syntax-string: #5d7a3a;
+    --syntax-number: #b4543a;
+    --syntax-function: #2c5f7a;
+    --syntax-punctuation: #8b7a5f;
+    --syntax-operator: #3a2a1a;
+    --syntax-tag: #a83269;
+    --syntax-attr: #2c5f7a;
+
+    /* M7.4 presence — warm-palette-adjacent: slightly lower chroma so
+       cursors don't fight the cream surface. Hue order stable across
+       themes (cursor-1 is always "the red one"). */
+    --collab-cursor-1: #a83232;
+    --collab-cursor-2: #b4543a;
+    --collab-cursor-3: #b8761e;
+    --collab-cursor-4: #5d7a3a;
+    --collab-cursor-5: #2c7a72;
+    --collab-cursor-6: #2c5f7a;
+    --collab-cursor-7: #7a4b8c;
+    --collab-cursor-8: #a83269;
+
+    /* M8.4 — slightly dustier amber so the underline integrates with the
+       cream surface (#fbf6ec) without screaming. Still distinct enough from
+       --accent (#b4543a, warm red) at the 70% alpha used by the underline. */
+    --comment-anchor-color: #a8742a;
+
+    /* M9.2 — diff palette tuned to the cream surface (#fbf6ec). Lower-chroma
+       sage + peach tints so the diff bg sits with the warm theme instead of
+       fighting it; fg text is mid-darkness so changed lines stay legible. */
+    --diff-add-bg: #e1e6c8;
+    --diff-add-fg: #4a5e1f;
+    --diff-del-bg: #f0d6c2;
+    --diff-del-fg: #7a2a2a;
+    --diff-gutter-bg: #ead9be;
+    --diff-gutter-fg: #7a6a55;
+
+    /* M13.0 — warm-theme callout palette. Dusty, lower-chroma tints that
+       integrate with the cream surface (#fbf6ec). Hues track the GitHub
+       spec (note=blue, tip=green, important=purple, warning=amber,
+       caution=red) but desaturated so they sit with the warm palette
+       instead of fighting --accent (#b4543a). */
+    --callout-note-bg: #e6e8e3;
+    --callout-note-fg: #2c5f7a;
+    --callout-note-border: #6b94a8;
+    --callout-tip-bg: #e1e6c8;
+    --callout-tip-fg: #4a5e1f;
+    --callout-tip-border: #8aa356;
+    --callout-important-bg: #e8e0e6;
+    --callout-important-fg: #6e3f7a;
+    --callout-important-border: #9d72a8;
+    --callout-warning-bg: #f0e3c2;
+    --callout-warning-fg: #8a5a14;
+    --callout-warning-border: #c9963f;
+    --callout-caution-bg: #f0d6c2;
+    --callout-caution-fg: #8a2828;
+    --callout-caution-border: #c45a5a;
+
+    /* M19 — shared semantic accent enum + chart palette (see tokens.css). Warm
+       values: dusty, lower-chroma tints that integrate with the cream surface
+       (#fbf6ec) instead of fighting --accent (#b4543a). */
+    --accent-positive-fg: #4a5e1f;
+    --accent-positive-soft: #e1e6c8;
+    --accent-negative-fg: #7a2a2a;
+    --accent-negative-soft: #f0d6c2;
+    --accent-warning-fg: #8a5a14;
+    --accent-warning-soft: #f0e3c2;
+    --accent-info-fg: #2c5f7a;
+    --accent-info-soft: #e6e8e3;
+
+    --chart-1: #b4543a;
+    --chart-2: #2c7a72;
+    --chart-3: #b8761e;
+    --chart-4: #a83269;
+    --chart-5: #2c5f7a;
+    --chart-6: #5d7a3a;
+    --chart-grid: #e0cdab;
+    --chart-axis: #7a6a55;
+  }
+}
